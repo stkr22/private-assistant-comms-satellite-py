@@ -1,0 +1,23 @@
+exclude: "docs|node_modules|migrations|.git|.tox|styles.css"
+default_stages: [pre-commit]
+fail_fast: false
+default_language_version:
+  python: "python3.12"
+
+repos:
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.2
+    hooks:
+    -   id: mypy
+
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.6.9
+    hooks:
+      # Run the linter.
+      - id: ruff
+        args: ["--fix"]
+      # Run the formatter.
+      - id: ruff-format

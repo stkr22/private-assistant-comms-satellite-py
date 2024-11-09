@@ -1,0 +1,28 @@
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "private-assistant-comms-satellite"
+version = "0.1.0"
+description = "The satellite is an open source library to work with the private assistant oecosystem built to run on edge devices. It allows the other components to interact speech based with the user and listen for user keywords to activate."
+authors = ["stkr22 <stkr22@github.com>"]
+readme = "README.md"
+license = "GNU General Public License v3.0"
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.13"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.6.8"
+mypy = "^1.11.2"
+pytest = "^8.3.3"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+indent-width = 4
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP"]
+ignore = ["E203"]

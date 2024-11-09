@@ -1,0 +1,13 @@
+# Changes here will be overwritten by Copier
+_commit: 0.1.5
+_src_path: gh:stkr22/copier-python-project
+author_email: stkr22@github.com
+author_full_name: stkr22
+copyright_license: GNU General Public License v3.0
+project_description: The satellite is an open source library to work with the private
+    assistant oecosystem built to run on edge devices. It allows the other components
+    to interact speech based with the user and listen for user keywords to activate.
+project_name: Private Assistant Comms Satellite
+python_package_distribution_name: private-assistant-comms-satellite
+python_package_import_name: private_assistant_comms_satellite
+version: 0.1.0

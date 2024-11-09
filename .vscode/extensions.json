@@ -1,0 +1,13 @@
+{
+    "recommendations": [
+        "ms-python.python",
+        "samuelcolvin.jinjahtml",
+        "streetsidesoftware.code-spell-checker",
+        "christian-kohler.path-intellisense",
+        "charliermarsh.ruff",
+        "ms-python.mypy-type-checker",
+        "tamasfe.even-better-toml",
+        "github.vscode-github-actions",
+        "oderwat.indent-rainbow"
+    ]
+}
