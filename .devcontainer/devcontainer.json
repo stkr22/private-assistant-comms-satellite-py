@@ -1,6 +1,6 @@
 {
 	"name": "private-assistant-comms-satellite-dev-environment",
-	"image": "mcr.microsoft.com/devcontainers/python:3.12",
+	"image": "mcr.microsoft.com/devcontainers/python:3.11",
 	"runArgs": [
 		"--userns=keep-id"
 	],
@@ -24,6 +24,6 @@
 		"HOME": "/home/vscode",
 		"POETRY_VIRTUALENVS_IN_PROJECT": "true"
 	},
-	"postCreateCommand": "pip install --user poetry pre-commit && poetry install && pre-commit install"
+	"postCreateCommand": "sudo apt-get update && sudo apt-get install -y libasound2-dev libportaudio2 libportaudiocpp0 portaudio19-dev && pip install --user poetry pre-commit && poetry install && pre-commit install"
 
 }

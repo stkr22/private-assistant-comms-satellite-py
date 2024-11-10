@@ -2,7 +2,7 @@ exclude: "docs|node_modules|migrations|.git|.tox|styles.css"
 default_stages: [pre-commit]
 fail_fast: false
 default_language_version:
-  python: "python3.12"
+  python: "python3.11"
 
 repos:
 
@@ -10,6 +10,7 @@ repos:
     rev: v1.11.2
     hooks:
     -   id: mypy
+        additional_dependencies: [types-PyYAML==6.0.12.20240311]
 
 
   - repo: https://github.com/astral-sh/ruff-pre-commit

@@ -12,14 +12,33 @@ license = "GNU General Public License v3.0"
 
 [tool.poetry.dependencies]
 python = ">=3.11,<3.13"
+openwakeword = "^0.6.0"
+httpx = "^0.27.2"
+pyyaml = "^6.0.1"
+pydantic = "^2.8.2"
+typer = "^0.13.0"
+private-assistant-commons = "^1.1.1"
+speexdsp-ns = "^0.1.2"
+numpy = "1.26.4"
+PyAudio = "^0.2.14"
+pysilero-vad = "^2.0.0"
+paho-mqtt = "^2.1.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.6.8"
 mypy = "^1.11.2"
 pytest = "^8.3.3"
+types-pyyaml = "^6.0.12.20240311"
+
+[[tool.mypy.overrides]]
+module = [
+    "openwakeword.*",
+    "pyaudio.*"
+]
+ignore_missing_imports = true
 
 [tool.ruff]
-target-version = "py312"
+target-version = "py311"
 line-length = 120
 indent-width = 4
 
