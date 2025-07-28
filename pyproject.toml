@@ -32,6 +32,7 @@ dependencies = [
     "pysilero-vad~=2.0.0",
     "typer~=0.16.0",
     "openWakeWord",
+    "pyaudio~=0.2.11",
 ]
 
 [tool.uv.sources]
