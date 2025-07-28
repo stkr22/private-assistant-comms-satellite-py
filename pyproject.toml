@@ -1,47 +1,126 @@
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
 
-[tool.poetry]
+[project]
 name = "private-assistant-comms-satellite"
-version = "0.1.0"
+dynamic = ["version"]
 description = "The satellite is an open source library to work with the private assistant oecosystem built to run on edge devices. It allows the other components to interact speech based with the user and listen for user keywords to activate."
-authors = ["stkr22 <stkr22@github.com>"]
+authors = [{ name = "stkr22", email = "stkr22@github.com" }]
 readme = "README.md"
-license = "GNU General Public License v3.0"
+license = { text = "GNU General Public License v3.0" }
 
-[tool.poetry.dependencies]
-python = ">=3.11,<3.13"
-openwakeword = "^0.6.0"
-httpx = "^0.27.2"
-pyyaml = "^6.0.1"
-pydantic = "^2.8.2"
-typer = "^0.13.0"
-private-assistant-commons = "^1.1.1"
-speexdsp-ns = "^0.1.2"
-numpy = "1.26.4"
-PyAudio = "^0.2.14"
-pysilero-vad = "^2.0.0"
-paho-mqtt = "^2.1.0"
+keywords = []
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Programming Language :: Python",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+]
 
-[tool.poetry.group.dev.dependencies]
-ruff = "^0.6.8"
-mypy = "^1.11.2"
-pytest = "^8.3.3"
-types-pyyaml = "^6.0.12.20240311"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "httpx~=0.27.0",
+    "pyyaml~=6.0.1",
+    "pydantic~=2.9.0",
+    "private-assistant-commons~=3.0.0",
+    "speexdsp-ns~=0.1.2",
+    "numpy==1.26.4",
+    "aiomqtt~=2.3.0",
+    "onnxruntime~=1.20.0",
+    "pysilero-vad~=2.0.0",
+    "typer~=0.16.0",
+    "openWakeWord",
+]
+
+[tool.uv.sources]
+openWakeWord = { git = "https://github.com/stkr22/openWakeWord.git", rev = "fb168ea71d5fb0f93ba8668107d51b57e8948a39" }
+
+
+[project.urls]
+Homepage = "https://github.com/stkr22/private-assistant-comms-satellite-py"
+Repository = "https://github.com/stkr22/private-assistant-comms-satellite-py"
+Documentation = "https://github.com/stkr22/private-assistant-comms-satellite-py/tree/main/docs"
+Issues = "https://github.com/stkr22/private-assistant-comms-satellite-py/issues"
+Changelog = "https://github.com/stkr22/private-assistant-comms-satellite-py/blob/main/CHANGELOG.md"
+
+
+[dependency-groups]
+dev = [
+    "ruff>=0.8.0",
+    "mypy>=1.11.0",
+    "pytest>=8.3.3",
+    "pytest-cov>=6.0.0",
+    "types-pyyaml~=6.0.12.20240311",
+    "pytest-xdist~=3.6.0",
+    "coverage[toml]~=7.6.0",
+    "commitizen~=4.8.3",
+]
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.targets.wheel.hooks.vcs]
+version-file = "src/private_assistant_comms_satellite/_version.py"
 
 [[tool.mypy.overrides]]
-module = [
-    "openwakeword.*",
-    "pyaudio.*"
-]
+module = ["openwakeword.*", "pyaudio.*"]
 ignore_missing_imports = true
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 line-length = 120
 indent-width = 4
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "I", "UP"]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "N",   # pep8-naming
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "RET", # flake8-return
+    "SIM", # flake8-simplify
+    "ARG", # flake8-unused-arguments
+    "PTH", # flake8-use-pathlib
+    "ERA", # eradicate
+    "PL",  # pylint
+    "RUF", # ruff-specific rules
+    "TCH", # flake8-type-checking
+]
 ignore = ["E203"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra -q -n auto"
+
+[tool.coverage.run]
+source = ["private_assistant_comms_satellite"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if __name__ == .__main__.:",
+]
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "v$version"
+version_scheme = "pep440"
+version_provider = "scm"
+update_changelog_on_bump = true
