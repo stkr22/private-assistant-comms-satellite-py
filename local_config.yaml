@@ -1,0 +1,46 @@
+# Private Assistant Communications Satellite Configuration
+# This file contains all available configuration options with their default values
+
+# Wake word detection settings
+wakework_detection_threshold: 0.6  # Confidence threshold for wake word detection (0.0-1.0)
+path_or_name_wakeword_model: "./hey_nova.onnx"  # Path to wake word model file
+name_wakeword_model: "hey_nova"  # Name of the wake word model
+
+# API endpoints for speech processing
+speech_transcription_api: "http://localhost:8000/transcribe"  # STT API endpoint
+speech_transcription_api_token: null  # Optional API token for STT service
+speech_synthesis_api: "http://localhost:8080/synthesizeSpeech"  # TTS API endpoint
+speech_synthesis_api_token: null  # Optional API token for TTS service
+
+# Device and room identification
+client_id: "default_hostname"  # Unique identifier for this satellite (defaults to hostname)
+room: "livingroom"  # Room name for this satellite device
+
+# Audio device configuration
+output_device_index: 1  # Audio output device index
+input_device_index: 1   # Audio input device index
+
+# Audio processing settings
+max_command_input_seconds: 15     # Maximum recording time for voice commands
+max_length_speech_pause: 1.0      # Maximum pause duration before stopping recording
+samplerate: 16000                 # Audio sample rate in Hz
+chunk_size: 512                   # Audio processing chunk size
+chunk_size_ow: 1280              # OpenWakeWord chunk size
+
+# Voice Activity Detection (VAD)
+vad_threshold: 0.6  # VAD confidence threshold (0.0-1.0, 1.0 is speech)
+vad_trigger: 1      # Number of chunks to cross threshold before activation
+
+# MQTT broker configuration
+mqtt_server_host: "localhost"  # MQTT broker hostname
+mqtt_server_port: 1883         # MQTT broker port
+
+# MQTT topic configuration (optional overrides)
+broadcast_topic: "assistant/comms_bridge/broadcast"  # Broadcast topic for system messages
+base_topic_overwrite: null    # Override for base topic (defaults to assistant/comms_bridge/all/{client_id})
+input_topic_overwrite: null   # Override for input topic (defaults to {base_topic}/input)
+output_topic_overwrite: null  # Override for output topic (defaults to {base_topic}/output)
+
+# Audio file paths
+start_listening_path: "sounds/start_listening.wav"  # Sound played when starting to listen
+stop_listening_path: "sounds/stop_listening.wav"    # Sound played when stopping listening

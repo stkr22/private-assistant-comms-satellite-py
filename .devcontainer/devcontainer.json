@@ -1,9 +1,14 @@
 {
 	"name": "private-assistant-comms-satellite-dev-environment",
-	"image": "mcr.microsoft.com/devcontainers/python:3.11",
-	"runArgs": [
-		"--userns=keep-id"
-	],
+	"build":
+		{
+			"dockerfile": "Containerfile",
+			"context": "."
+		},
+	"features": {
+		"ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
+		"ghcr.io/devcontainers/features/github-cli:1": {}
+	},
 	"customizations": {
 		"vscode": {
 			"extensions": [
@@ -16,14 +21,40 @@
 				"tamasfe.even-better-toml",
 				"github.vscode-github-actions",
 				"oderwat.indent-rainbow",
-				"mhutchie.git-graph"
-			]
+				"mhutchie.git-graph",
+				"vivaxy.vscode-conventional-commits",
+			],
+			"settings": {
+				"terminal.integrated.defaultProfile.linux": "zsh",
+				"terminal.integrated.profiles.linux": {
+					"bash": {
+						"path": "bash",
+						"icon": "terminal-bash"
+					},
+					"zsh": {
+						"path": "zsh"
+					}
+				},
+				"editor.formatOnSave": true
+			}
 		}
 	},
 	"containerEnv": {
 		"HOME": "/home/vscode",
-		"POETRY_VIRTUALENVS_IN_PROJECT": "true"
+    	"CLAUDE_CONFIG_DIR": "/home/node/.claude",
+		"POWERLEVEL9K_DISABLE_GITSTATUS": "true"
 	},
-	"postCreateCommand": "sudo apt-get update && sudo apt-get install -y libasound2-dev libportaudio2 libportaudiocpp0 portaudio19-dev && pip install --user poetry pre-commit && poetry install && pre-commit install"
-
+	"mounts": [
+		{
+			"source": "claude-code-bashhistory-${devcontainerId}",
+			"target": "/commandhistory",
+			"type": "volume"
+		},
+		{
+			"source": "claude-code-config-${devcontainerId}",
+			"target": "/home/node/.claude",
+			"type": "volume"
+		}
+	],
+	"postCreateCommand": "uv sync --group dev && echo 'Claude Code is ready! Run: claude' && echo 'For unattended operation: claude --dangerously-skip-permissions'"
 }

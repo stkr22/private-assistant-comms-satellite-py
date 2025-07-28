@@ -1,12 +1,12 @@
 """Voice activity detection."""
 
+from pysilero_vad import SileroVoiceActivityDetector
+
 
 class SileroVad:
     """Voice activity detection with silero VAD."""
 
     def __init__(self, threshold: float, trigger_level: int) -> None:
-        from pysilero_vad import SileroVoiceActivityDetector
-
         self.detector = SileroVoiceActivityDetector()
         self.threshold = threshold
         self.trigger_level = trigger_level
@@ -19,7 +19,20 @@ class SileroVad:
             self.detector.reset()
             return False
 
-        if self.detector(audio_bytes) >= self.threshold:
+        chunk_size = self.detector.chunk_bytes()
+        if len(audio_bytes) < chunk_size:
+            raise ValueError(f"Audio bytes must be at least {chunk_size} bytes")
+
+        # Process chunks
+        speech_probs = []
+        for i in range(0, len(audio_bytes) - chunk_size + 1, chunk_size):
+            chunk = audio_bytes[i : i + chunk_size]
+            speech_probs.append(self.detector(chunk))
+
+        # Use maximum probability
+        max_prob = max(speech_probs)
+
+        if max_prob >= self.threshold:
             # Speech detected
             self._activation += 1
             if self._activation >= self.trigger_level:

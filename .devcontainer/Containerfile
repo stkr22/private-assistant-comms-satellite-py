@@ -1,0 +1,36 @@
+FROM mcr.microsoft.com/devcontainers/base@sha256:4807916fa13f4f2a4d1ced226a31f71bc49e40864bf0825e7196f0a52a535a2c
+
+# Install UV package manager
+COPY --from=ghcr.io/astral-sh/uv:0.5.14@sha256:f0786ad49e2e684c18d38697facb229f538a6f5e374c56f54125aabe7d14b3f7 /uv /uvx /bin/
+
+# Set up Python virtual environment
+ENV VIRTUAL_ENV=/workspaces/.venv
+ENV UV_PROJECT_ENVIRONMENT=/workspaces/.venv
+
+# Create necessary directories and set permissions
+RUN mkdir -p /workspaces /commandhistory && \
+    chown -R vscode:vscode /workspaces /commandhistory
+
+# Set up command history persistence for Claude Code
+RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" && \
+    echo $SNIPPET >> /home/vscode/.bashrc && \
+    echo $SNIPPET >> /home/vscode/.zshrc && \
+    touch /commandhistory/.bash_history && \
+    chown -R vscode:vscode /commandhistory
+
+# Set environment variable to help with container orientation
+ENV DEVCONTAINER=true
+
+# Create Claude configuration directory
+RUN mkdir -p /home/vscode/.claude && \
+    chown -R vscode:vscode /home/vscode/.claude
+
+# additional proejct dependencies
+RUN apt-get update && apt-get install -y libspeexdsp-dev git && \
+    rm -rf /var/lib/apt/lists/*
+
+# Switch to non-root user
+USER vscode
+
+# Set working directory
+WORKDIR /workspaces

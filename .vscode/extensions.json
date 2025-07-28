@@ -8,6 +8,8 @@
         "ms-python.mypy-type-checker",
         "tamasfe.even-better-toml",
         "github.vscode-github-actions",
-        "oderwat.indent-rainbow"
+        "oderwat.indent-rainbow",
+        "mhutchie.git-graph",
+        "vivaxy.vscode-conventional-commits"
     ]
 }
