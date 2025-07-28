@@ -31,12 +31,16 @@ dependencies = [
     "onnxruntime~=1.20.0",
     "pysilero-vad~=2.0.0",
     "typer~=0.16.0",
+    "rich~=13.0.0",
     "openWakeWord",
 ]
 
 [tool.uv.sources]
 openWakeWord = { git = "https://github.com/stkr22/openWakeWord.git", rev = "fb168ea71d5fb0f93ba8668107d51b57e8948a39" }
 
+
+[project.scripts]
+comms-satellite = "private_assistant_comms_satellite.cli:app"
 
 [project.urls]
 Homepage = "https://github.com/stkr22/private-assistant-comms-satellite-py"

@@ -20,9 +20,14 @@ def load_wav_file(file_path: str) -> bytes:
         return wf.readframes(wf.getnframes())
 
 
-def main() -> None:
-    """Main function to start the satellite application."""
-    config_obj = config.load_config(pathlib.Path(os.getenv("PRIVATE_ASSISTANT_API_CONFIG_PATH", "local_config.yaml")))
+def start_satellite(config_path: pathlib.Path) -> None:
+    """Start the satellite application with the given configuration.
+    
+    Args:
+        config_path: Path to the YAML configuration file
+    """
+    # AIDEV-NOTE: Refactored from main() to allow CLI integration
+    config_obj = config.load_config(config_path)
     wakeword_model = openwakeword.Model(
         wakeword_models=[config_obj.path_or_name_wakeword_model],
         enable_speex_noise_suppression=True,
@@ -64,4 +69,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    # AIDEV-NOTE: Direct execution for development, use CLI for production
+    config_path = pathlib.Path(os.getenv("PRIVATE_ASSISTANT_API_CONFIG_PATH", "local_config.yaml"))
+    start_satellite(config_path)
