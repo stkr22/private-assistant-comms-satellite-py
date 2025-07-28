@@ -4,11 +4,20 @@ import queue
 import threading
 import time
 import uuid
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import openwakeword
-import pyaudio
 from private_assistant_commons import messages
+
+# AIDEV-NOTE: Import pyaudio as optional dependency for CI/CD compatibility
+if TYPE_CHECKING:
+    import pyaudio
+else:
+    try:
+        import pyaudio
+    except ImportError:
+        pyaudio = None
 
 from private_assistant_comms_satellite import silero_vad
 from private_assistant_comms_satellite.utils import (
@@ -46,9 +55,16 @@ class Satellite:
         self._mqtt_loop: asyncio.AbstractEventLoop | None = None
         self._mqtt_thread: threading.Thread | None = None
 
-        # Initialize PyAudio
-        self.p: pyaudio.PyAudio = pyaudio.PyAudio()
-        self.stream_input: pyaudio.Stream = self.p.open(
+        # Initialize PyAudio (if available)
+        if pyaudio is None:
+            raise ImportError(
+                "PyAudio is required for audio processing. Install with: uv sync --group audio"
+            )
+        
+        # AIDEV-NOTE: Use Any for runtime type flexibility with optional pyaudio
+        
+        self.p: Any = pyaudio.PyAudio()
+        self.stream_input: Any = self.p.open(
             format=pyaudio.paInt16,
             channels=1,
             rate=self.config.samplerate,
@@ -56,7 +72,7 @@ class Satellite:
             frames_per_buffer=self.config.chunk_size,
             input_device_index=self.config.input_device_index,
         )
-        self.stream_output: pyaudio.Stream = self.p.open(
+        self.stream_output: Any = self.p.open(
             format=pyaudio.paInt16,
             channels=1,
             rate=self.config.samplerate,

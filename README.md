@@ -14,5 +14,23 @@ Owner: stkr22
 
 The satellite is an open source library to work with the private assistant oecosystem built to run on edge devices. It allows the other components to interact speech based with the user and listen for user keywords to activate.
 
+## Installation
 
+### Basic Installation
+```bash
+uv sync
+```
+
+### Audio Support (for running on devices)
+
+For audio processing capabilities, install system dependencies and audio group:
+
+```bash
+# Install system dependencies (Ubuntu/Debian)
 sudo apt-get install -y libasound2-dev libportaudio2 libportaudiocpp0 portaudio19-dev
+
+# Install audio dependencies
+uv sync --group audio
+```
+
+**Note**: Audio dependencies are optional and not required for testing or development without hardware audio.
