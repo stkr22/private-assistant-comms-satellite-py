@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.0](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v0.3.0...v0.4.0) (2025-07-29)
+
+
+### Features
+
+* optimize memory with pre-allocated audio buffers [AI] ([7b82b68](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/7b82b682fafe5dcbc158a0ca19f9563b51a3db7e))
+* optimize memory with pre-allocated audio buffers [AI] ([d3416c0](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/d3416c006e8c8a122d385191a8ea0b249caa4d17)), closes [#9](https://github.com/stkr22/private-assistant-comms-satellite-py/issues/9)
+* vectorized VAD processing [AI] ([feded86](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/feded86df892a1400f6de36bdf6e78231a661484))
+* vectorized VAD processing [AI] ([9ad3ccf](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/9ad3ccf0ad6a38609a7a5016fb9c4770e48f02fb))
+
 ## [0.3.0](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v0.2.0...v0.3.0) (2025-07-29)
 
 
