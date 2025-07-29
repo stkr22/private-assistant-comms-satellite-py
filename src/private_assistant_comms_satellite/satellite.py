@@ -72,6 +72,13 @@ class Satellite:
         self._audio_thread: threading.Thread | None = None
         self._processing_thread: threading.Thread | None = None
 
+        # AIDEV-NOTE: Pre-allocated audio buffers for memory optimization
+        max_recording_samples = self.config.max_command_input_seconds * self.config.samplerate
+        self._audio_buffer = np.zeros(max_recording_samples, dtype=np.float32)  # Main recording buffer
+        self._temp_chunk_buffer = np.zeros(self.config.chunk_size, dtype=np.float32)  # Temporary chunk buffer
+        self._buffer_position = 0  # Current position in the audio buffer
+        self._buffer_lock = threading.RLock()  # Thread-safe buffer access
+
         # AIDEV-NOTE: PyAudio initialization - critical dependency for edge device audio I/O
         if pyaudio is None:
             raise ImportError("PyAudio is required for audio processing. Install with: uv sync --group audio")
@@ -122,6 +129,48 @@ class Satellite:
         except queue.Empty:
             pass  # No completed TTS responses ready
 
+    def _reset_audio_buffer(self) -> None:
+        """Reset the pre-allocated audio buffer for new recording."""
+        with self._buffer_lock:
+            self._buffer_position = 0
+            # No need to zero the buffer - we'll just track position
+
+    def _append_to_audio_buffer(self, audio_chunk: np.ndarray) -> bool:
+        """Append audio chunk to pre-allocated buffer. Returns False if buffer is full."""
+        with self._buffer_lock:
+            chunk_size = len(audio_chunk)
+            if self._buffer_position + chunk_size > len(self._audio_buffer):
+                return False  # Buffer full
+
+            # AIDEV-NOTE: In-place copy to avoid memory allocation
+            self._audio_buffer[self._buffer_position : self._buffer_position + chunk_size] = audio_chunk
+            self._buffer_position += chunk_size
+            return True
+
+    def _get_recorded_audio(self) -> np.ndarray:
+        """Get the recorded audio as a view (no copy) of the buffer."""
+        with self._buffer_lock:
+            if self._buffer_position == 0:
+                return np.array([], dtype=np.float32)
+            # Return a view, not a copy, for memory efficiency
+            return self._audio_buffer[: self._buffer_position]
+
+    def _convert_audio_chunk_inplace(self, audio_bytes: bytes) -> np.ndarray:
+        """Convert audio bytes to float32 using pre-allocated buffer."""
+        # AIDEV-NOTE: Reuse temp buffer to avoid allocations
+        raw_audio_data = np.frombuffer(audio_bytes, dtype=np.int16)
+        chunk_size = len(raw_audio_data)
+
+        # Ensure temp buffer is large enough
+        if chunk_size > len(self._temp_chunk_buffer):
+            # Only resize if absolutely necessary
+            self._temp_chunk_buffer = np.zeros(chunk_size, dtype=np.float32)
+
+        # AIDEV-NOTE: In-place conversion using pre-allocated buffer
+        temp_view = self._temp_chunk_buffer[:chunk_size]
+        temp_view[:] = raw_audio_data.astype(np.float32) / 32768.0
+        return temp_view
+
     def _audio_io_thread(self) -> None:
         """Pure audio I/O thread - handles only PyAudio read/write operations."""
         self.logger.info("Audio I/O thread started")
@@ -167,12 +216,15 @@ class Satellite:
         # AIDEV-NOTE: Signal to audio I/O thread that we're in recording mode
         self._recording_active_event.set()
 
+        # AIDEV-NOTE: Reset pre-allocated buffer for new recording
+        self._reset_audio_buffer()
+
         try:
             # AIDEV-NOTE: Core audio processing loop - handles real-time recording and VAD
             silence_packages = 0
             max_frames = self.config.max_command_input_seconds * self.config.samplerate
             max_silent_packages = self.config.samplerate / self.config.chunk_size * self.config.max_length_speech_pause
-            audio_frames = None
+            has_audio_data = False
             active_listening = True
 
             while active_listening:
@@ -184,30 +236,40 @@ class Satellite:
                     continue
 
                 if self.vad_model(audio_bytes) > self.config.vad_threshold:
-                    raw_audio_data = np.frombuffer(audio_bytes, dtype=np.int16)
-                    data = speech_recognition_tools.int2float(raw_audio_data)
+                    # AIDEV-NOTE: Use pre-allocated buffer instead of creating new arrays
+                    data = self._convert_audio_chunk_inplace(audio_bytes)
                     silence_packages = 0
-                    audio_frames = data if audio_frames is None else np.concatenate((audio_frames, data), axis=0)
+                    if not self._append_to_audio_buffer(data):
+                        # Buffer full, stop recording
+                        active_listening = False
+                        self.logger.warning("Audio buffer full, stopping recording")
+                    else:
+                        has_audio_data = True
                     self.logger.debug("Received voice...")
                 else:
-                    if audio_frames is not None:
-                        raw_audio_data = np.frombuffer(audio_bytes, dtype=np.int16)
-                        data = speech_recognition_tools.int2float(raw_audio_data)
-                        audio_frames = np.concatenate((audio_frames, data), axis=0)
-                        silence_packages += 1
+                    if has_audio_data:
+                        # AIDEV-NOTE: Use pre-allocated buffer for silence chunks too
+                        data = self._convert_audio_chunk_inplace(audio_bytes)
+                        if not self._append_to_audio_buffer(data):
+                            # Buffer full, stop recording
+                            active_listening = False
+                            self.logger.warning("Audio buffer full, stopping recording")
+                        else:
+                            silence_packages += 1
                     self.logger.debug("No voice...")
 
-                if audio_frames is not None and (
-                    audio_frames.shape[0] > max_frames or silence_packages >= max_silent_packages
-                ):
+                if has_audio_data and (self._buffer_position > max_frames or silence_packages >= max_silent_packages):
                     active_listening = False
                     self.logger.info("Stopping listening, playing stop sound...")
                     # AIDEV-NOTE: Queue audio output instead of direct write
                     self._audio_output_queue.put(self.stop_listening_sound)
                     self.logger.info("Requested transcription...")
 
-                    # AIDEV-NOTE: Non-blocking - just queue the audio for STT processing
-                    self._stt_request_queue.put(audio_frames)
+                    # AIDEV-NOTE: Get recorded audio without copying - just a view
+                    audio_frames = self._get_recorded_audio()
+                    if len(audio_frames) > 0:
+                        # Make a copy only when queuing for STT (unavoidable for thread safety)
+                        self._stt_request_queue.put(audio_frames.copy())
 
                     # AIDEV-NOTE: Continue audio processing while STT happens in background
                     # We'll check for STT results in the main loop
