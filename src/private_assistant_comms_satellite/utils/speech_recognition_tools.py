@@ -18,6 +18,15 @@ class STTResponse(BaseModel):
 
 
 def int2float(sound: np_typing.NDArray[np.int16]) -> np_typing.NDArray[np.float32]:
+    """Convert 16-bit integer audio to float32 format for API processing.
+    
+    Args:
+        sound: 16-bit integer audio array
+        
+    Returns:
+        Float32 audio array normalized to [-1, 1] range
+    """
+    # AIDEV-NOTE: Optimized NumPy operations for real-time audio conversion
     abs_max = np.abs(sound).max()
     sound_32: np_typing.NDArray[np.float32] = sound.astype(np.float32)
     if abs_max > 0:
@@ -30,7 +39,17 @@ async def send_audio_to_stt_api(
     config_obj: config.Config,
     timeout: float = 10.0,
 ) -> STTResponse | None:
-    """Send audio to STT API and receive transcription."""
+    """Send audio to STT API and receive transcription.
+    
+    Args:
+        audio_data: Float32 audio array to transcribe
+        config_obj: Configuration with API endpoint and token
+        timeout: Request timeout in seconds
+        
+    Returns:
+        STTResponse with transcribed text or None if failed
+    """
+    # AIDEV-NOTE: Async API call executed in MQTT thread to avoid blocking audio processing
     files = {"file": ("audio.raw", audio_data.tobytes())}
     headers = {"user-token": config_obj.speech_transcription_api_token or ""}
 
@@ -63,7 +82,18 @@ async def send_text_to_tts_api(
     sample_rate: int = 16000,
     timeout: float = 10.0,
 ) -> bytes | None:
-    """Send text to TTS API and receive audio data."""
+    """Send text to TTS API and receive audio data.
+    
+    Args:
+        text: Text to synthesize into speech
+        config_obj: Configuration with API endpoint and token
+        sample_rate: Audio sample rate for synthesis
+        timeout: Request timeout in seconds
+        
+    Returns:
+        Audio bytes in WAV format or None if failed
+    """
+    # AIDEV-NOTE: Async API call with error handling for network resilience
     headers = {
         "user-token": config_obj.speech_synthesis_api_token or "",
         "Content-Type": "application/json",

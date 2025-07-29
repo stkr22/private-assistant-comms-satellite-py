@@ -55,7 +55,7 @@ class Satellite:
         self._mqtt_loop: asyncio.AbstractEventLoop | None = None
         self._mqtt_thread: threading.Thread | None = None
 
-        # Initialize PyAudio (if available)
+        # AIDEV-NOTE: PyAudio initialization - critical dependency for edge device audio I/O
         if pyaudio is None:
             raise ImportError("PyAudio is required for audio processing. Install with: uv sync --group audio")
 
@@ -79,6 +79,12 @@ class Satellite:
         )
 
     def process_output_queue(self):
+        """Process pending TTS responses from the assistant.
+        
+        Checks output queue for new messages, calls TTS API asynchronously,
+        and plays synthesized audio through speakers. Called frequently in main loop.
+        """
+        # AIDEV-NOTE: Critical performance path - non-blocking queue check for real-time audio
         try:
             response = self.output_queue.get_nowait()
             self.logger.info("Received new message: '%s'", response.text)
@@ -102,6 +108,12 @@ class Satellite:
             self.logger.debug("Queue is empty, no message to process.")
 
     def processing_spoken_commands(self) -> None:
+        """Handle voice command recording after wake word detection.
+        
+        Records audio until silence detected or timeout, uses VAD for speech boundaries,
+        calls STT API asynchronously, and publishes transcription to MQTT.
+        """
+        # AIDEV-NOTE: Core audio processing loop - handles real-time recording and VAD
         silence_packages = 0
         max_frames = self.config.max_command_input_seconds * self.config.samplerate
         max_silent_packages = self.config.samplerate / self.config.chunk_size * self.config.max_length_speech_pause
@@ -185,7 +197,7 @@ class Satellite:
                 audio_data = self.stream_input.read(self.config.chunk_size_ow, exception_on_overflow=False)
                 audio_np = np.frombuffer(audio_data, dtype=np.int16)
 
-                # Wakeword detection
+                # AIDEV-NOTE: Wake word detection using OpenWakeWord - optimized chunk size for performance
                 prediction = self.wakeword_model.predict(
                     audio_np,
                     debounce_time=2.0,

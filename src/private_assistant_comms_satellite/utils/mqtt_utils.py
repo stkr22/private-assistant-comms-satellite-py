@@ -52,7 +52,7 @@ class AsyncMQTTClient:
                         logger.warning("%s seems to have no queue. Discarding message.", message.topic.value)
                     else:
                         try:
-                            # AIDEV-NOTE: Handle different payload types from aiomqtt
+                            # AIDEV-NOTE: Payload parsing handles various aiomqtt message formats for robustness
                             if isinstance(message.payload, bytes | bytearray):
                                 payload_str = message.payload.decode("utf-8")
                             elif isinstance(message.payload, str):
