@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import queue
 import threading
 import time
@@ -9,11 +8,13 @@ import uuid
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import openwakeword
 from private_assistant_commons import messages
 
 # AIDEV-NOTE: Import pyaudio as optional dependency for CI/CD compatibility
 if TYPE_CHECKING:
+    import logging
+
+    import openwakeword
     import pyaudio
 else:
     try:
