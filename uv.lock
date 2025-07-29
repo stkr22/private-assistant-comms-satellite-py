@@ -431,7 +431,7 @@ wheels = [
 
 [[package]]
 name = "private-assistant-comms-satellite"
-version = "0.1.1.dev0+g3601dd0.d20250729"
+version = "0.1.2.dev0+gaf9dc2f.d20250729"
 source = { editable = "." }
 dependencies = [
     { name = "aiomqtt" },

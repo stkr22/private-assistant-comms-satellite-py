@@ -1,18 +1,23 @@
+import asyncio
 import logging
 import queue
 
 import aiomqtt
+from private_assistant_commons import messages
 
 logger = logging.getLogger(__name__)
 
 
 class AsyncMQTTClient:
     """Async MQTT client wrapper for aiomqtt integration."""
-    def __init__(self, hostname: str, port: int, client_id: str, topic_to_queue: dict[str, queue.Queue[str]]):
+
+    def __init__(
+        self, hostname: str, port: int, client_id: str, topic_to_queue: dict[str, asyncio.Queue[messages.Response]]
+    ):
         self.hostname = hostname
         self.port = port
         self.client_id = client_id
-        self.topic_to_queue = topic_to_queue
+        self.topic_to_queue: dict[str, asyncio.Queue[messages.Response]] = topic_to_queue
         self._client: aiomqtt.Client | None = None
         self._running = False
 
@@ -47,14 +52,14 @@ class AsyncMQTTClient:
                         logger.warning("%s seems to have no queue. Discarding message.", message.topic.value)
                     else:
                         try:
-                            # AIDEV-NOTE: Handle different payload types from aiomqtt
+                            # AIDEV-NOTE: Payload parsing handles various aiomqtt message formats for robustness
                             if isinstance(message.payload, bytes | bytearray):
                                 payload_str = message.payload.decode("utf-8")
                             elif isinstance(message.payload, str):
                                 payload_str = message.payload
                             else:
                                 payload_str = str(message.payload)
-                            topic_queue.put_nowait(payload_str)
+                            topic_queue.put_nowait(messages.Response.model_validate_json(payload_str))
                         except queue.Full:
                             logger.warning("Queue for topic %s is full, discarding message", message.topic.value)
         except Exception as e:

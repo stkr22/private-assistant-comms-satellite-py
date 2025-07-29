@@ -13,6 +13,15 @@ class SileroVad:
         self._activation = 0
 
     def __call__(self, audio_bytes: bytes | None) -> bool:
+        """Process audio chunk and detect voice activity with trigger mechanism.
+        
+        Args:
+            audio_bytes: Audio data chunk or None to reset detector
+            
+        Returns:
+            True if sustained speech detected above trigger level
+        """
+        # AIDEV-NOTE: VAD reset mechanism for initialization and error recovery
         if audio_bytes is None:
             # Reset
             self._activation = 0
@@ -32,6 +41,7 @@ class SileroVad:
         # Use maximum probability
         max_prob = max(speech_probs)
 
+        # AIDEV-NOTE: Trigger-level mechanism reduces false positives in edge device environments
         if max_prob >= self.threshold:
             # Speech detected
             self._activation += 1

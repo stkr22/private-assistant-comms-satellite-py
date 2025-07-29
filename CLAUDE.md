@@ -1,1 +1,1 @@
-READ THE AGENTS.md
+AGENTS.md

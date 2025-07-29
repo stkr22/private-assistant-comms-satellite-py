@@ -41,14 +41,18 @@ class Config(BaseModel):
 
     @property
     def base_topic(self) -> str:
+        """Generate base MQTT topic for this satellite instance."""
+        # AIDEV-NOTE: Dynamic topic generation based on client_id for multi-satellite deployments
         return self.base_topic_overwrite or f"assistant/comms_bridge/all/{self.client_id}"
 
     @property
     def input_topic(self) -> str:
+        """Topic where satellite publishes recognized speech."""
         return self.input_topic_overwrite or f"{self.base_topic}/input"
 
     @property
     def output_topic(self) -> str:
+        """Topic where satellite subscribes for TTS responses."""
         return self.output_topic_overwrite or f"{self.base_topic}/output"
 
 
