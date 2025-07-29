@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.1](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v0.1.0...v0.1.1) (2025-07-29)
+
+
+### Bug Fixes
+
+* adding inference framework as parameter ([64f55a0](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/64f55a010dc49944db99ab4d8c49fb582e701452))
+* adding inference framework as parameter ([f473269](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/f4732692d67de9c5a7811426f9ec25976b5a19fc))
+
 ## 0.1.0 (2025-07-28)
 
 
