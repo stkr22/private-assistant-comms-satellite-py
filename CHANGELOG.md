@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v0.2.0...v0.3.0) (2025-07-29)
+
+
+### Features
+
+* implement 3-thread architecture [AI] ([0cab4f6](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/0cab4f648348621c9d96ae87d0aa61d967841d13))
+
 ## [0.2.0](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v0.1.1...v0.2.0) (2025-07-29)
 
 
