@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 class Config(BaseModel):
     wakework_detection_threshold: float = 0.6
+    openwakeword_inference_framework: str = "onnx"
     path_or_name_wakeword_model: str = "./hey_nova.onnx"
     name_wakeword_model: str = "hey_nova"
     speech_transcription_api: str = "http://localhost:8000/transcribe"
