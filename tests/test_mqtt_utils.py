@@ -18,7 +18,7 @@ def sample_topic_queue():
 
 class TestAsyncMQTTClientInit:
     """Test AsyncMQTTClient initialization."""
-    
+
     def test_client_initialization(self, sample_topic_queue):
         """Test proper initialization of AsyncMQTTClient."""
         client = AsyncMQTTClient(
@@ -27,7 +27,7 @@ class TestAsyncMQTTClientInit:
             client_id="test_client",
             topic_to_queue=sample_topic_queue,
         )
-        
+
         assert client.hostname == "localhost"
         assert client.port == 1883  # noqa: PLR2004
         assert client.client_id == "test_client"
@@ -36,5 +36,5 @@ class TestAsyncMQTTClientInit:
         assert client._running is False
 
 
-# NOTE: Complex async integration tests removed for simplicity - 
+# NOTE: Complex async integration tests removed for simplicity -
 # focus on basic initialization and configuration testing

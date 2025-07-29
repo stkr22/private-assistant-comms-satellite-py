@@ -21,22 +21,22 @@ app = typer.Typer(
 @app.command()
 def main(
     config_path: Annotated[
-        pathlib.Path, 
+        pathlib.Path,
         typer.Argument(
             envvar="PRIVATE_ASSISTANT_API_CONFIG_PATH",
             help="Path to YAML configuration file",
-        )
+        ),
     ] = pathlib.Path("local_config.yaml"),
 ) -> None:
     """Start the Private Assistant Communications Satellite.
-    
+
     The satellite provides edge device voice interaction capabilities including:
     - Wake word detection using OpenWakeWord
     - Speech-to-text transcription via API
-    - Text-to-speech synthesis via API  
+    - Text-to-speech synthesis via API
     - MQTT communication with the assistant ecosystem
     - Voice activity detection using Silero VAD
-    
+
     Configuration can be provided via:
     - Command line argument: --config-path path/to/config.yaml
     - Environment variable: PRIVATE_ASSISTANT_API_CONFIG_PATH
@@ -45,13 +45,13 @@ def main(
     try:
         console.print("[green]Starting Private Assistant Communications Satellite[/green]")
         console.print(f"[dim]Using config: {config_path}[/dim]")
-        
+
         # Initialize logger early for consistent logging
         logger = skill_logger.SkillLogger.get_logger("Private Assistant Comms Satellite")
         logger.info("Starting satellite application from CLI")
-        
+
         start_satellite(config_path)
-        
+
     except KeyboardInterrupt:
         console.print("\n[yellow]Shutting down gracefully...[/yellow]")
         logger.info("Satellite application interrupted by user")
@@ -82,7 +82,7 @@ def version() -> None:
 @app.command()
 def config_template() -> None:
     """Generate a template configuration file.
-    
+
     Creates a local_config.yaml file with all available configuration options
     and their default values for easy customization.
     """
@@ -133,13 +133,13 @@ output_topic_overwrite: null  # Override for output topic (defaults to {base_top
 start_listening_path: "sounds/start_listening.wav"  # Sound played when starting to listen
 stop_listening_path: "sounds/stop_listening.wav"    # Sound played when stopping listening
 """
-    
+
     config_path = pathlib.Path("local_config.yaml")
-    
+
     if config_path.exists() and not typer.confirm(f"Configuration file {config_path} already exists. Overwrite?"):
         console.print("[yellow]Configuration template generation cancelled[/yellow]")
         return
-    
+
     config_path.write_text(config_template)
     console.print(f"[green]Configuration template created: {config_path}[/green]")
     console.print("[dim]Edit this file to customize your satellite settings[/dim]")

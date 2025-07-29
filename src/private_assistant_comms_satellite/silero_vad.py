@@ -14,10 +14,10 @@ class SileroVad:
 
     def __call__(self, audio_bytes: bytes | None) -> bool:
         """Process audio chunk and detect voice activity with trigger mechanism.
-        
+
         Args:
             audio_bytes: Audio data chunk or None to reset detector
-            
+
         Returns:
             True if sustained speech detected above trigger level
         """
