@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 import queue
@@ -55,6 +57,12 @@ class Satellite:
         self._mqtt_loop: asyncio.AbstractEventLoop | None = None
         self._mqtt_thread: threading.Thread | None = None
 
+        # AIDEV-NOTE: Queues for non-blocking API communication
+        self._tts_request_queue: queue.Queue[str] = queue.Queue()
+        self._tts_response_queue: queue.Queue[bytes | None] = queue.Queue()
+        self._stt_request_queue: queue.Queue[np.ndarray] = queue.Queue()
+        self._stt_response_queue: queue.Queue[str | None] = queue.Queue()
+
         # AIDEV-NOTE: PyAudio initialization - critical dependency for edge device audio I/O
         if pyaudio is None:
             raise ImportError("PyAudio is required for audio processing. Install with: uv sync --group audio")
@@ -80,36 +88,33 @@ class Satellite:
 
     def process_output_queue(self):
         """Process pending TTS responses from the assistant.
-        
-        Checks output queue for new messages, calls TTS API asynchronously,
-        and plays synthesized audio through speakers. Called frequently in main loop.
+
+        Checks output queue for new messages and queues them for non-blocking TTS processing.
+        Plays any completed TTS audio that's ready. Called frequently in main loop.
         """
-        # AIDEV-NOTE: Critical performance path - non-blocking queue check for real-time audio
+        # AIDEV-NOTE: Critical performance path - non-blocking queue operations only
         try:
             response = self.output_queue.get_nowait()
             self.logger.info("Received new message: '%s'", response.text)
-            self.logger.info("...requesting synthesize...")
+            self.logger.info("...queuing for TTS synthesis...")
 
-            # AIDEV-NOTE: Run async TTS call in the MQTT event loop
-            if self._mqtt_loop and not self._mqtt_loop.is_closed():
-                future = asyncio.run_coroutine_threadsafe(
-                    speech_recognition_tools.send_text_to_tts_api(response.text, self.config), self._mqtt_loop
-                )
-                try:
-                    # Wait for TTS result with timeout
-                    audio_bytes = future.result(timeout=10.0)
-                    if audio_bytes is not None:
-                        self.stream_output.write(audio_bytes)
-                except Exception as e:
-                    self.logger.error("TTS synthesis failed: %s", e)
-            else:
-                self.logger.error("MQTT loop not available, cannot process TTS")
+            # AIDEV-NOTE: Non-blocking - just queue the request
+            self._tts_request_queue.put(response.text)
         except queue.Empty:
             self.logger.debug("Queue is empty, no message to process.")
 
+        # AIDEV-NOTE: Check for completed TTS responses (non-blocking)
+        try:
+            audio_bytes = self._tts_response_queue.get_nowait()
+            if audio_bytes is not None:
+                self.stream_output.write(audio_bytes)
+                self.logger.info("Played TTS audio")
+        except queue.Empty:
+            pass  # No completed TTS responses ready
+
     def processing_spoken_commands(self) -> None:
         """Handle voice command recording after wake word detection.
-        
+
         Records audio until silence detected or timeout, uses VAD for speech boundaries,
         calls STT API asynchronously, and publishes transcription to MQTT.
         """
@@ -140,33 +145,62 @@ class Satellite:
                 self.stream_output.write(self.stop_listening_sound)
                 self.logger.info("Requested transcription...")
 
-                # AIDEV-NOTE: Run async STT call in the MQTT event loop
-                if self._mqtt_loop and not self._mqtt_loop.is_closed():
-                    future = asyncio.run_coroutine_threadsafe(
-                        speech_recognition_tools.send_audio_to_stt_api(audio_frames, config_obj=self.config),
-                        self._mqtt_loop,
+                # AIDEV-NOTE: Non-blocking - just queue the audio for STT processing
+                self._stt_request_queue.put(audio_frames)
+
+                # AIDEV-NOTE: Continue audio processing while STT happens in background
+                # We'll check for STT results in the main loop
+
+    def _api_processor(self) -> None:
+        """Background thread for processing API requests without blocking audio."""
+
+        async def process_api_requests():
+            """Async processing of TTS and STT requests."""
+            while True:
+                # Process TTS requests
+                try:
+                    text = self._tts_request_queue.get_nowait()
+                    self.logger.info("Processing TTS request: '%s'", text)
+                    audio_bytes = await speech_recognition_tools.send_text_to_tts_api(text, self.config)
+                    self._tts_response_queue.put(audio_bytes)
+                    self.logger.info("TTS request completed")
+                except queue.Empty:
+                    pass
+                except Exception as e:
+                    self.logger.error("TTS processing failed: %s", e)
+                    self._tts_response_queue.put(None)
+
+                # Process STT requests
+                try:
+                    audio_frames = self._stt_request_queue.get_nowait()
+                    self.logger.info("Processing STT request")
+                    response = await speech_recognition_tools.send_audio_to_stt_api(
+                        audio_frames, config_obj=self.config
                     )
-                    try:
-                        # Wait for STT result with timeout
-                        response = future.result(timeout=15.0)
-                        self.logger.info("Received result...%s", response)
+                    if response is not None:
+                        self._stt_response_queue.put(response.text)
+                        self.logger.info("STT request completed: '%s'", response.text)
+                    else:
+                        self._stt_response_queue.put(None)
+                        self.logger.warning("STT request failed")
+                except queue.Empty:
+                    pass
+                except Exception as e:
+                    self.logger.error("STT processing failed: %s", e)
+                    self._stt_response_queue.put(None)
 
-                        if response is not None:
-                            message = messages.ClientRequest(
-                                id=uuid.uuid4(),
-                                text=response.text,
-                                room=self.config.room,
-                                output_topic=self.config.output_topic,
-                            ).model_dump_json()
+                # Small delay to avoid busy-waiting
+                await asyncio.sleep(0.01)
 
-                            asyncio.run_coroutine_threadsafe(
-                                self.mqtt_client.publish(self.config.input_topic, message, qos=1), self._mqtt_loop
-                            )
-                            self.logger.info("Published result text to MQTT.")
-                    except Exception as e:
-                        self.logger.error("STT transcription failed: %s", e)
-                else:
-                    self.logger.error("MQTT loop not available, cannot process STT")
+        # AIDEV-NOTE: Run API processing in separate thread with its own event loop
+        api_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(api_loop)
+        try:
+            api_loop.run_until_complete(process_api_requests())
+        except Exception as e:
+            self.logger.error("API processor error: %s", e)
+        finally:
+            api_loop.close()
 
     def _start_mqtt_loop(self) -> None:
         """Start the MQTT client in a separate thread with its own event loop."""
@@ -187,13 +221,45 @@ class Satellite:
         # Give the MQTT client time to start
         time.sleep(1)
 
+    def _check_stt_results(self) -> None:
+        """Check for completed STT results and publish to MQTT (non-blocking)."""
+        try:
+            result_text = self._stt_response_queue.get_nowait()
+            if result_text is not None:
+                self.logger.info("Received STT result: '%s'", result_text)
+
+                message = messages.ClientRequest(
+                    id=uuid.uuid4(),
+                    text=result_text,
+                    room=self.config.room,
+                    output_topic=self.config.output_topic,
+                ).model_dump_json()
+
+                if self._mqtt_loop and not self._mqtt_loop.is_closed():
+                    asyncio.run_coroutine_threadsafe(
+                        self.mqtt_client.publish(self.config.input_topic, message, qos=1), self._mqtt_loop
+                    )
+                    self.logger.info("Published result text to MQTT.")
+                else:
+                    self.logger.error("MQTT loop not available, cannot publish STT result")
+            else:
+                self.logger.warning("STT processing failed for recorded audio")
+        except queue.Empty:
+            pass  # No STT results ready yet
+
     def start(self) -> None:
         """Start the satellite with MQTT client and audio processing."""
         self._start_mqtt_loop()
 
+        # AIDEV-NOTE: Start API processing thread for non-blocking TTS/STT
+        api_thread = threading.Thread(target=self._api_processor, daemon=True)
+        api_thread.start()
+
         try:
             while True:
                 self.process_output_queue()
+                self._check_stt_results()
+
                 audio_data = self.stream_input.read(self.config.chunk_size_ow, exception_on_overflow=False)
                 audio_np = np.frombuffer(audio_data, dtype=np.int16)
 
