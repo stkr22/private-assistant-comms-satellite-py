@@ -1,10 +1,10 @@
+import asyncio
 import os
 import pathlib
-import queue
 import wave
 
 import openwakeword
-from private_assistant_commons import skill_logger
+from private_assistant_commons import messages, skill_logger
 
 from private_assistant_comms_satellite import satellite
 from private_assistant_comms_satellite.utils import (
@@ -34,8 +34,8 @@ def start_satellite(config_path: pathlib.Path) -> None:
         vad_threshold=config_obj.vad_threshold,
         inference_framework=config_obj.openwakeword_inference_framework,
     )
-    topic_to_queue: dict[str, queue.Queue[str]] = {}
-    output_queue: queue.Queue[str] = queue.Queue()
+    topic_to_queue: dict[str, asyncio.Queue[messages.Response]] = {}
+    output_queue: asyncio.Queue[messages.Response] = asyncio.Queue()
     output_topic = config_obj.output_topic
     topic_to_queue[output_topic] = output_queue
     topic_to_queue[config_obj.broadcast_topic] = output_queue

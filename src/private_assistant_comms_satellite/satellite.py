@@ -34,7 +34,7 @@ class Satellite:
     def __init__(  # noqa: PLR0913
         self,
         config: config.Config,
-        output_queue: queue.Queue[str],
+        output_queue: asyncio.Queue[messages.Response],
         start_listening_sound: bytes,
         stop_listening_sound: bytes,
         wakeword_model: openwakeword.Model,
@@ -57,12 +57,10 @@ class Satellite:
 
         # Initialize PyAudio (if available)
         if pyaudio is None:
-            raise ImportError(
-                "PyAudio is required for audio processing. Install with: uv sync --group audio"
-            )
-        
+            raise ImportError("PyAudio is required for audio processing. Install with: uv sync --group audio")
+
         # AIDEV-NOTE: Use Any for runtime type flexibility with optional pyaudio
-        
+
         self.p: Any = pyaudio.PyAudio()
         self.stream_input: Any = self.p.open(
             format=pyaudio.paInt16,
@@ -82,14 +80,14 @@ class Satellite:
 
     def process_output_queue(self):
         try:
-            output_text = self.output_queue.get_nowait()
-            self.logger.info("Received new message: '%s'", output_text)
+            response = self.output_queue.get_nowait()
+            self.logger.info("Received new message: '%s'", response.text)
             self.logger.info("...requesting synthesize...")
 
             # AIDEV-NOTE: Run async TTS call in the MQTT event loop
             if self._mqtt_loop and not self._mqtt_loop.is_closed():
                 future = asyncio.run_coroutine_threadsafe(
-                    speech_recognition_tools.send_text_to_tts_api(output_text, self.config), self._mqtt_loop
+                    speech_recognition_tools.send_text_to_tts_api(response.text, self.config), self._mqtt_loop
                 )
                 try:
                     # Wait for TTS result with timeout
