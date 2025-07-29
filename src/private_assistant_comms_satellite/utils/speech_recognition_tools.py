@@ -19,10 +19,10 @@ class STTResponse(BaseModel):
 
 def int2float(sound: np_typing.NDArray[np.int16]) -> np_typing.NDArray[np.float32]:
     """Convert 16-bit integer audio to float32 format for API processing.
-    
+
     Args:
         sound: 16-bit integer audio array
-        
+
     Returns:
         Float32 audio array normalized to [-1, 1] range
     """
@@ -40,12 +40,12 @@ async def send_audio_to_stt_api(
     timeout: float = 10.0,
 ) -> STTResponse | None:
     """Send audio to STT API and receive transcription.
-    
+
     Args:
         audio_data: Float32 audio array to transcribe
         config_obj: Configuration with API endpoint and token
         timeout: Request timeout in seconds
-        
+
     Returns:
         STTResponse with transcribed text or None if failed
     """
@@ -83,13 +83,13 @@ async def send_text_to_tts_api(
     timeout: float = 10.0,
 ) -> bytes | None:
     """Send text to TTS API and receive audio data.
-    
+
     Args:
         text: Text to synthesize into speech
         config_obj: Configuration with API endpoint and token
         sample_rate: Audio sample rate for synthesis
         timeout: Request timeout in seconds
-        
+
     Returns:
         Audio bytes in WAV format or None if failed
     """
