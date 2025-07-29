@@ -87,7 +87,7 @@ class Satellite:
             output_device_index=self.config.output_device_index,
         )
 
-    def process_output_queue(self):
+    async def process_output_queue(self):
         """Process pending TTS responses from the assistant.
 
         Checks output queue for new messages and queues them for non-blocking TTS processing.
@@ -113,7 +113,7 @@ class Satellite:
         except queue.Empty:
             pass  # No completed TTS responses ready
 
-    def processing_spoken_commands(self) -> None:
+    async def processing_spoken_commands(self) -> None:
         """Handle voice command recording after wake word detection.
 
         Records audio until silence detected or timeout, uses VAD for speech boundaries,
@@ -151,6 +151,9 @@ class Satellite:
 
                 # AIDEV-NOTE: Continue audio processing while STT happens in background
                 # We'll check for STT results in the main loop
+
+            # AIDEV-NOTE: Allow other async tasks to run during voice recording
+            await asyncio.sleep(0.001)
 
     def _api_processor(self) -> None:
         """Background thread for processing API requests without blocking audio."""
@@ -222,7 +225,7 @@ class Satellite:
         # Give the MQTT client time to start
         time.sleep(1)
 
-    def _check_stt_results(self) -> None:
+    async def _check_stt_results(self) -> None:
         """Check for completed STT results and publish to MQTT (non-blocking)."""
         try:
             result_text = self._stt_response_queue.get_nowait()
@@ -248,19 +251,10 @@ class Satellite:
         except queue.Empty:
             pass  # No STT results ready yet
 
-    def start(self) -> None:
-        """Start the satellite with MQTT client and audio processing."""
-        self._start_mqtt_loop()
-
-        # AIDEV-NOTE: Start API processing thread for non-blocking TTS/STT
-        api_thread = threading.Thread(target=self._api_processor, daemon=True)
-        api_thread.start()
-
+    async def _audio_processing_loop(self) -> None:
+        """Main audio processing loop with wake word detection."""
         try:
             while True:
-                self.process_output_queue()
-                self._check_stt_results()
-
                 audio_data = self.stream_input.read(self.config.chunk_size_ow, exception_on_overflow=False)
                 audio_np = np.frombuffer(audio_data, dtype=np.int16)
 
@@ -281,7 +275,52 @@ class Satellite:
                 if wakeword_probability >= self.config.wakework_detection_threshold:
                     self.logger.info("Wakeword detected, playing start listening sound.")
                     self.stream_output.write(self.start_listening_sound)
-                    self.processing_spoken_commands()
+                    await self.processing_spoken_commands()
+
+                # AIDEV-NOTE: Small yield to allow other async tasks to run
+                await asyncio.sleep(0.001)
+        except KeyboardInterrupt:
+            self.logger.info("Received interrupt signal")
+            raise
+
+    async def _queue_processing_loop(self) -> None:
+        """Background processing of TTS/STT queues."""
+        try:
+            while True:
+                await self.process_output_queue()
+                await self._check_stt_results()
+
+                # AIDEV-NOTE: Small delay to prevent busy-waiting
+                await asyncio.sleep(0.01)
+        except KeyboardInterrupt:
+            self.logger.info("Queue processing interrupted")
+            raise
+
+    def start(self) -> None:
+        """Start the satellite with MQTT client and audio processing."""
+        self._start_mqtt_loop()
+
+        # AIDEV-NOTE: Start API processing thread for non-blocking TTS/STT
+        api_thread = threading.Thread(target=self._api_processor, daemon=True)
+        api_thread.start()
+
+        # AIDEV-NOTE: Run async event loop with concurrent tasks
+        async def run_concurrent_tasks():
+            # Create concurrent tasks for different processing loops
+            audio_task = asyncio.create_task(self._audio_processing_loop())
+            queue_task = asyncio.create_task(self._queue_processing_loop())
+
+            # Run tasks concurrently until one completes (or raises exception)
+            try:
+                await asyncio.gather(audio_task, queue_task)
+            except KeyboardInterrupt:
+                self.logger.info("Shutting down concurrent tasks")
+                audio_task.cancel()
+                queue_task.cancel()
+                raise
+
+        try:
+            asyncio.run(run_concurrent_tasks())
         except KeyboardInterrupt:
             self.logger.info("Received interrupt signal")
             raise
