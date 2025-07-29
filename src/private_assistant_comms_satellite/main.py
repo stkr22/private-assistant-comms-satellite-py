@@ -22,7 +22,7 @@ def load_wav_file(file_path: str) -> bytes:
 
 def start_satellite(config_path: pathlib.Path) -> None:
     """Start the satellite application with the given configuration.
-    
+
     Args:
         config_path: Path to the YAML configuration file
     """
@@ -32,6 +32,7 @@ def start_satellite(config_path: pathlib.Path) -> None:
         wakeword_models=[config_obj.path_or_name_wakeword_model],
         enable_speex_noise_suppression=True,
         vad_threshold=config_obj.vad_threshold,
+        inference_framework=config_obj.openwakeword_inference_framework,
     )
     topic_to_queue: dict[str, queue.Queue[str]] = {}
     output_queue: queue.Queue[str] = queue.Queue()

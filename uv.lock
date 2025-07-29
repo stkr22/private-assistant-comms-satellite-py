@@ -380,17 +380,6 @@ wheels = [
 ]
 
 [[package]]
-name = "openwakeword"
-version = "0.6.0"
-source = { git = "https://github.com/stkr22/openWakeWord.git?rev=fb168ea71d5fb0f93ba8668107d51b57e8948a39#fb168ea71d5fb0f93ba8668107d51b57e8948a39" }
-dependencies = [
-    { name = "requests" },
-    { name = "scikit-learn" },
-    { name = "scipy" },
-    { name = "tqdm" },
-]
-
-[[package]]
 name = "packaging"
 version = "25.0"
 source = { registry = "https://pypi.org/simple" }
@@ -442,15 +431,15 @@ wheels = [
 
 [[package]]
 name = "private-assistant-comms-satellite"
-version = "0.1.dev6+g293e419.d20250728"
+version = "0.1.1.dev0+g3601dd0.d20250729"
 source = { editable = "." }
 dependencies = [
     { name = "aiomqtt" },
     { name = "httpx" },
     { name = "numpy" },
     { name = "onnxruntime" },
-    { name = "openwakeword" },
     { name = "private-assistant-commons" },
+    { name = "private-assistant-openwakeword" },
     { name = "pydantic" },
     { name = "pysilero-vad" },
     { name = "pyyaml" },
@@ -481,8 +470,8 @@ requires-dist = [
     { name = "httpx", specifier = "~=0.27.0" },
     { name = "numpy", specifier = "==1.26.4" },
     { name = "onnxruntime", specifier = "~=1.20.0" },
-    { name = "openwakeword", git = "https://github.com/stkr22/openWakeWord.git?rev=fb168ea71d5fb0f93ba8668107d51b57e8948a39" },
     { name = "private-assistant-commons", specifier = "~=3.0.0" },
+    { name = "private-assistant-openwakeword", specifier = "~=0.6.0" },
     { name = "pydantic", specifier = "~=2.9.0" },
     { name = "pysilero-vad", specifier = "~=2.0.0" },
     { name = "pyyaml", specifier = "~=6.0.1" },
@@ -503,6 +492,21 @@ dev = [
     { name = "pytest-xdist", specifier = "~=3.6.0" },
     { name = "ruff", specifier = ">=0.8.0" },
     { name = "types-pyyaml", specifier = "~=6.0.12.20240311" },
+]
+
+[[package]]
+name = "private-assistant-openwakeword"
+version = "0.6.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+    { name = "scikit-learn" },
+    { name = "scipy" },
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e4/ca/57c314ca874443575d27aa0ceb121a6a5f8f3f45117146db483dedbb4bad/private_assistant_openwakeword-0.6.0.tar.gz", hash = "sha256:fb94e45e89b77f525e9b3d527a5cb50916bd2afc376bd92da31bb0a1369f2234", size = 71776 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bf/e9/fd5b9dc682586af6b195b8680cf68d348a7977224ae8f3699266950fd17c/private_assistant_openwakeword-0.6.0-py3-none-any.whl", hash = "sha256:45cb7322185bac0cdcf5ca66793b1fe44fc975468048c7439d7ec378fd41ec89", size = 61407 },
 ]
 
 [[package]]
