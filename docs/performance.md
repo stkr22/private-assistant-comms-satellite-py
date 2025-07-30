@@ -37,9 +37,10 @@ max_command_input_seconds: 15
 ## Performance Monitoring
 
 ### Key Metrics
-- **CPU Usage**: 15-25% (Pi Zero 2W), 8-15% (Pi 4)
-- **Memory**: ~50-100MB baseline, ~150-200MB peak
+- **CPU Usage**: 10-20% (Pi Zero 2W), 5-12% (Pi 4) - Reduced with simplified architecture
+- **Memory**: ~40-80MB baseline, ~120-150MB peak - Lower due to eliminated queues
 - **Latency**: Wake word detection ~100-200ms
+- **Stability**: No queue overflows or threading conflicts
 
 ### Monitoring Commands
 ```bash

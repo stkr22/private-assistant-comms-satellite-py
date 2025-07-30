@@ -24,25 +24,31 @@ The Private Assistant Communications Satellite is a latency-optimized edge devic
 
 ## 🏗️ Architecture Overview
 
-The satellite uses a **performance-optimized multi-threaded architecture**:
+The satellite uses a **simple state machine architecture** for stability and performance:
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Audio Thread  │    │   MQTT Thread   │    │  Main Process   │
-│  (Low Latency)  │    │  (Async I/O)    │    │  (Coordination) │
-├─────────────────┤    ├─────────────────┤    ├─────────────────┤
-│ • PyAudio I/O   │    │ • MQTT Client   │    │ • Configuration │
-│ • Wake Word     │◄──►│ • Message Queue │◄──►│ • Orchestration │
-│ • VAD Processing│    │ • API Calls     │    │ • Error Handling│
-│ • Audio Buffers │    │ • Event Loop    │    │ • Resource Mgmt │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+┌─────────────────┐    ┌─────────────────┐
+│   Main Thread   │    │   MQTT Thread   │
+│ (State Machine) │    │  (Low Latency)  │
+├─────────────────┤    ├─────────────────┤
+│ • LISTENING     │    │ • MQTT Client   │
+│ • RECORDING     │◄──►│ • Message Queue │
+│ • WAITING       │    │ • Event Loop    │
+│ • SPEAKING      │    │ • Async I/O     │
+└─────────────────┘    └─────────────────┘
 ```
 
-**Key Design Decisions:**
-- **Separate MQTT Thread**: Prevents network I/O from blocking audio processing
-- **Async API Calls**: STT/TTS requests run in MQTT event loop to avoid audio thread blocking  
-- **Minimal Memory Allocation**: Pre-loaded sound files and efficient numpy operations
-- **Configurable Buffer Sizes**: Tune chunk sizes for your hardware's performance characteristics
+**State Machine Flow:**
+- **LISTENING**: Monitors audio for wake word detection
+- **RECORDING**: Records user speech after wake word trigger
+- **WAITING**: Processes STT API and waits for response
+- **SPEAKING**: Plays TTS audio response
+
+**Key Design Benefits:**
+- **Simplified Threading**: Only MQTT runs in separate thread for network I/O
+- **Predictable Behavior**: Clear state transitions eliminate race conditions  
+- **Resource Efficiency**: Direct audio I/O without complex queuing
+- **Stable Operation**: No queue overflows or threading conflicts
 
 ## 🚀 Quick Start
 
