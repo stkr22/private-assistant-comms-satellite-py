@@ -1,34 +1,39 @@
 # Architecture
 
-## Threading Model
+## State Machine Model
 
-The satellite uses a **2-thread architecture** optimized for low-latency audio processing:
+The satellite uses a **simple state machine** with minimal threading for stability:
 
 ```
 ┌─────────────────┐    ┌─────────────────┐
 │   Main Thread   │    │   MQTT Thread   │
-│ (Audio/Real-time)│    │  (Network I/O)  │
+│ (State Machine) │    │  (Network I/O)  │
 ├─────────────────┤    ├─────────────────┤
-│ • PyAudio I/O   │    │ • MQTT Client   │
-│ • Wake Word     │◄──►│ • STT/TTS APIs  │
-│ • VAD Processing│    │ • Message Queue │
-│ • Sound Playback│    │ • Async Event   │
-└─────────────────┘    │   Loop          │
-                       └─────────────────┘
+│ • LISTENING     │    │ • MQTT Client   │
+│ • RECORDING     │◄──►│ • Message Queue │
+│ • WAITING       │    │ • Event Loop    │
+│ • SPEAKING      │    │ • Low Latency   │
+└─────────────────┘    └─────────────────┘
 ```
 
-**Key Design Decision**: Separate threads prevent network I/O from blocking audio processing, critical for edge device performance.
+**Key Design Benefits**: Single-threaded state machine eliminates race conditions and queue overflows while maintaining MQTT responsiveness.
 
-## Data Flow
+## State Transitions
 
-### Audio Processing Pipeline
+### State Flow
 ```
-Microphone → PyAudio → Wake Word Detection → VAD → STT API → MQTT → Assistant
-                              ↓
-                        Start/Stop Sounds
-
-Assistant → MQTT → TTS API → PyAudio → Speaker
+LISTENING ──(wake word)──► RECORDING ──(silence)──► WAITING ──(STT done)──► LISTENING
+    ▲                                                    │
+    │                                               (TTS received)
+    │                                                    ▼
+    └──────────────────────────────────────────── SPEAKING
 ```
+
+### State Behaviors
+- **LISTENING**: Wake word detection, MQTT processing
+- **RECORDING**: Voice recording with VAD
+- **WAITING**: STT processing, MQTT processing  
+- **SPEAKING**: TTS playback, MQTT processing
 
 ### Configuration Structure
 - **Pydantic Models**: Type-safe configuration with validation
