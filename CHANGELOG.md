@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.6.0](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v0.5.0...v0.6.0) (2025-07-31)
+
+
+### Features
+
+* add automatic OpenWakeWord model download on first startup [AI] ([1f6803f](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/1f6803f34e6f2d27a47de56d4369e1c79a15c2dd))
+* add WebSocket and SSL support for MQTT connections [AI] ([21fe75b](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/21fe75b005f94e3f7e970c3a6ad1726c3f97153d))
+* configure PyAudio as optional dependency for CI compatibility [AI] ([a6924bd](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/a6924bdfd4c147902e44e8643a5470daff17478e))
+
+
+### Bug Fixes
+
+* update CI to exclude PyAudio extra [AI] ([75d7bcc](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/75d7bccff5f78fdbe2b99ad3261f4e999bd8218b))
+
 ## [0.4.0](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v0.3.0...v0.4.0) (2025-07-29)
 
 
