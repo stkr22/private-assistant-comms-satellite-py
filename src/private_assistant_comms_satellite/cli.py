@@ -55,8 +55,10 @@ def start(
     except ImportError as e:
         if "pyaudio" in str(e).lower():
             console.print("[red]Error: PyAudio not available[/red]")
-            console.print("[dim]Install audio dependencies with: uv sync --group audio[/dim]")
-            console.print("[dim]Or install system dependencies first (see README.md)[/dim]")
+            console.print("[dim]Install with audio support:[/dim]")
+            console.print("[dim]  pip install 'private-assistant-comms-satellite[audio]'[/dim]")
+            console.print("[dim]Or for development: uv sync --group audio[/dim]")
+            console.print("[dim]System dependencies may be required first (see README.md)[/dim]")
         else:
             console.print(f"[red]Import Error: {e}[/red]")
         raise typer.Exit(1) from e

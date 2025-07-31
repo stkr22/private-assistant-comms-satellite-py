@@ -80,7 +80,9 @@ class Satellite:
 
         # AIDEV-NOTE: PyAudio initialization - critical dependency for edge device audio I/O
         if pyaudio is None:
-            raise ImportError("PyAudio is required for audio processing. Install with: uv sync --group audio")
+            raise ImportError(
+                "PyAudio is required for audio processing: pip install 'private-assistant-comms-satellite[audio]'"
+            )
 
         self.p: Any = pyaudio.PyAudio()
         self.stream_input: Any = self.p.open(
