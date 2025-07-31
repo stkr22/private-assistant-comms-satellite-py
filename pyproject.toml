@@ -47,8 +47,10 @@ Issues = "https://github.com/stkr22/private-assistant-comms-satellite-py/issues"
 Changelog = "https://github.com/stkr22/private-assistant-comms-satellite-py/blob/main/CHANGELOG.md"
 
 
-[dependency-groups]
+[project.optional-dependencies]
 audio = ["pyaudio~=0.2.11"]
+
+[dependency-groups]
 dev = [
     "ruff>=0.8.0",
     "mypy>=1.11.0",
