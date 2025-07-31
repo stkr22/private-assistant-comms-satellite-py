@@ -45,6 +45,9 @@ def start_satellite(config_path: pathlib.Path) -> None:
         port=config_obj.mqtt_server_port,
         client_id=config_obj.client_id,
         topic_to_queue=topic_to_queue,
+        use_websockets=config_obj.mqtt_use_websockets,
+        websocket_path=config_obj.mqtt_websocket_path,
+        use_ssl=config_obj.mqtt_use_ssl,
     )
 
     logger = skill_logger.SkillLogger.get_logger("Private Assistant Comms Satellite")

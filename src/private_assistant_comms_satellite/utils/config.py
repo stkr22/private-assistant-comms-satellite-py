@@ -32,6 +32,9 @@ class Config(BaseModel):
     """Number of chunks to cross threshold before activation."""
     mqtt_server_host: str = "localhost"
     mqtt_server_port: int = 1883
+    mqtt_use_websockets: bool = False
+    mqtt_websocket_path: str = "/mqtt"
+    mqtt_use_ssl: bool = False
     broadcast_topic: str = "assistant/comms_bridge/broadcast"
     base_topic_overwrite: str | None = None
     input_topic_overwrite: str | None = None
