@@ -64,6 +64,7 @@ class Satellite:
         self.wakeword_model: openwakeword.Model = wakeword_model
         self.mqtt_client = mqtt_client
         self._mqtt_thread: threading.Thread | None = None
+        self._mqtt_loop: asyncio.AbstractEventLoop | None = None
 
         # AIDEV-NOTE: Simple state machine
         self._state = SatelliteState.LISTENING
@@ -73,6 +74,9 @@ class Satellite:
         max_recording_samples = self.config.max_command_input_seconds * self.config.samplerate
         self._audio_buffer = np.zeros(max_recording_samples, dtype=np.float32)
         self._buffer_position = 0
+
+        # AIDEV-NOTE: Timing tracking
+        self._stop_sound_time = 0.0
 
         # AIDEV-NOTE: PyAudio initialization - critical dependency for edge device audio I/O
         if pyaudio is None:
@@ -111,19 +115,33 @@ class Satellite:
         """Process pending TTS responses from the assistant."""
         try:
             response = self.output_queue.get_nowait()
-            self.logger.info("Received new message: '%s'", response.text)
+            self.logger.debug("Received new message: '%s'", response.text)
 
             # AIDEV-NOTE: Set state to waiting, then speaking
             self._set_state(SatelliteState.WAITING)
 
             # Get TTS audio synchronously
+            tts_start_time = time.time()
             audio_bytes = await speech_recognition_tools.send_text_to_tts_api(response.text, self.config)
+            tts_processing_time = time.time() - tts_start_time
 
             if audio_bytes:
                 self._set_state(SatelliteState.SPEAKING)
+                playback_start_time = time.time()
+                # Calculate total processing time from stop sound to TTS playback start
+                if self._stop_sound_time > 0:
+                    total_processing_time = playback_start_time - self._stop_sound_time
+                    self.logger.debug("Total processing time (STT + LLM + TTS): %.3f seconds", total_processing_time)
+
+                self.logger.debug("Starting TTS playback at: %.3f", playback_start_time)
                 # Play audio directly
                 self.stream_output.write(audio_bytes)
-                self.logger.info("Finished playing TTS audio")
+                playback_duration = time.time() - playback_start_time
+                self.logger.debug(
+                    "Finished playing TTS audio (TTS processing: %.3f seconds, playback duration: %.3f seconds)",
+                    tts_processing_time,
+                    playback_duration,
+                )
 
             # Return to listening state
             self._set_state(SatelliteState.LISTENING)
@@ -155,6 +173,7 @@ class Satellite:
         """Record voice command after wake word detection."""
         self._set_state(SatelliteState.RECORDING)
         self._reset_audio_buffer()
+        recording_start_time = time.time()
 
         try:
             silence_packages = 0
@@ -193,12 +212,16 @@ class Satellite:
 
                 if has_audio_data and (self._buffer_position > max_frames or silence_packages >= max_silent_packages):
                     active_listening = False
-                    self.logger.info("Stopping listening, playing stop sound...")
+                    recording_duration = time.time() - recording_start_time
+                    self.logger.debug("Stopping listening, playing stop sound...")
                     self.stream_output.write(self.stop_listening_sound)
+                    self.logger.debug("Recording duration: %.3f seconds", recording_duration)
 
                     # Process STT
                     audio_frames = self._get_recorded_audio()
                     if len(audio_frames) > 0:
+                        # Store stop sound time for total processing calculation
+                        self._stop_sound_time = time.time()
                         await self._process_stt(audio_frames)
 
                 await asyncio.sleep(0.001)
@@ -209,13 +232,17 @@ class Satellite:
     async def _process_stt(self, audio_frames: np.ndarray) -> None:
         """Process speech-to-text and publish to MQTT."""
         self._set_state(SatelliteState.WAITING)
-        self.logger.info("Processing STT request")
+        stt_start_time = time.time()
+        self.logger.debug("Processing STT request")
 
         try:
             response = await speech_recognition_tools.send_audio_to_stt_api(audio_frames, config_obj=self.config)
+            stt_processing_time = time.time() - stt_start_time
 
             if response is not None:
-                self.logger.info("STT result: '%s'", response.text)
+                self.logger.debug(
+                    "STT result: '%s' (processing time: %.3f seconds)", response.text, stt_processing_time
+                )
 
                 message = messages.ClientRequest(
                     id=uuid.uuid4(),
@@ -224,8 +251,18 @@ class Satellite:
                     output_topic=self.config.output_topic,
                 ).model_dump_json()
 
-                await self.mqtt_client.publish(self.config.input_topic, message, qos=1)
-                self.logger.info("Published result text to MQTT.")
+                # AIDEV-NOTE: Schedule MQTT publish on the MQTT thread's event loop
+                mqtt_publish_start = time.time()
+                if self._mqtt_loop and not self._mqtt_loop.is_closed():
+                    future = asyncio.run_coroutine_threadsafe(
+                        self.mqtt_client.publish(self.config.input_topic, message, qos=1), self._mqtt_loop
+                    )
+                    # Wait for the publish to complete
+                    future.result(timeout=5)
+                    mqtt_publish_time = time.time() - mqtt_publish_start
+                    self.logger.debug("Published result text to MQTT (publish time: %.3f seconds).", mqtt_publish_time)
+                else:
+                    self.logger.error("MQTT loop not available, cannot publish STT result")
             else:
                 self.logger.warning("STT processing failed for recorded audio")
         except Exception as e:
@@ -237,14 +274,14 @@ class Satellite:
         """Start the MQTT client in a separate thread."""
 
         def mqtt_runner():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            self._mqtt_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self._mqtt_loop)
             try:
-                loop.run_until_complete(self.mqtt_client.start())
+                self._mqtt_loop.run_until_complete(self.mqtt_client.start())
             except Exception as e:
                 self.logger.error("MQTT client error: %s", e)
             finally:
-                loop.close()
+                self._mqtt_loop.close()
 
         self._mqtt_thread = threading.Thread(target=mqtt_runner, daemon=True)
         self._mqtt_thread.start()
@@ -277,7 +314,7 @@ class Satellite:
                     )
 
                     if wakeword_probability >= self.config.wakework_detection_threshold:
-                        self.logger.info("Wakeword detected, playing start listening sound.")
+                        self.logger.debug("Wakeword detected, playing start listening sound.")
                         self.stream_output.write(self.start_listening_sound)
                         await self._record_command()
 
