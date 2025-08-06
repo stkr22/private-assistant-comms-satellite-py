@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.0.0](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v0.6.0...v1.0.0) (2025-08-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* PyAudio optional dependency removed - sounddevice is now core audio library
+
+### Features
+
+* :loud_sound: migrate from PyAudio to sounddevice [AI] ([2986c7b](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/2986c7b9788e4bdb85084e6e8a2046d668ab07bb))
+* migrate from PyAudio to sounddevice for improved audio processing ([a785352](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/a78535267289a1cc364b752945df43b6a6445d32))
+
+
+### Documentation
+
+* add concise getting started guide for edge device setup [AI] ([7ff1851](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/7ff1851205ba8d9255753183b6d4948672ae02a6))
+* add concise getting started guide for edge device setup [AI] ([d197b0f](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/d197b0fb75a3576507be2c631d11ae07f7136ab8))
+
 ## [0.6.0](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v0.5.0...v0.6.0) (2025-07-31)
 
 
