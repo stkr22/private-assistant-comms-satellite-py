@@ -22,7 +22,7 @@ sudo apt update
 sudo apt install -y python3.12 python3.12-dev python3.12-venv git curl
 
 # Install build tools and audio system dependencies
-sudo apt install -y gcc build-essential libasound2-dev libportaudio2 portaudio19-dev
+sudo apt install -y gcc build-essential libasound2-dev libportaudio2 libportaudiocpp0 portaudio19-dev libsndfile1-dev
 
 # Install UV package manager
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -45,14 +45,12 @@ alsamixer    # Use arrow keys to adjust, press Esc to exit
 # Save volume settings to persist after reboot
 sudo alsactl store
 
-# Find PyAudio device indices
+# Find sounddevice device indices
 python3.12 -c "
-import pyaudio
-p = pyaudio.PyAudio()
-for i in range(p.get_device_count()):
-    info = p.get_device_info_by_index(i)
-    print(f'{i}: {info[\"name\"]} (in:{info[\"maxInputChannels\"]}, out:{info[\"maxOutputChannels\"]})')
-p.terminate()
+import sounddevice as sd
+devices = sd.query_devices()
+for i, device in enumerate(devices):
+    print(f'{i}: {device[\"name\"]} (in:{device[\"max_input_channels\"]}, out:{device[\"max_output_channels\"]})')
 "
 ```
 
@@ -67,7 +65,7 @@ cd comms-satellite
 
 # Initialize UV project and install satellite
 uv init --python 3.12
-uv add "private-assistant-comms-satellite[audio]"
+uv add private-assistant-comms-satellite
 
 # Test installation
 uv run comms-satellite --help
@@ -164,7 +162,7 @@ sudo systemctl restart comms-satellite.service
 
 ## Common Issues
 
-**Audio errors**: Verify device indices with the PyAudio command from Step 2.
+**Audio errors**: Verify device indices with the sounddevice command from Step 2.
 
 **MQTT errors**: Test connectivity with `ping your-mqtt-broker.local`.
 

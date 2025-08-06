@@ -1,14 +1,23 @@
 {
 	"name": "private-assistant-comms-satellite-dev-environment",
-	"build":
-		{
-			"dockerfile": "Containerfile",
-			"context": "."
-		},
+	"build": {
+		"dockerfile": "Containerfile",
+		"context": "."
+	},
 	"features": {
 		"ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
-		"ghcr.io/devcontainers/features/github-cli:1": {}
+		"ghcr.io/devcontainers/features/github-cli:1": {},
+		"ghcr.io/devcontainers/features/common-utils:2": {
+			"installZsh": true,
+			"configureZshAsDefaultShell": true,
+			"installOhMyZsh": true,
+			"installOhMyZshConfig": true,
+			"upgradePackages": true
+		}
 	},
+	"runArgs": [
+		"--cap-add=NET_RAW"
+	],
 	"customizations": {
 		"vscode": {
 			"extensions": [
@@ -41,7 +50,7 @@
 	},
 	"containerEnv": {
 		"HOME": "/home/vscode",
-    	"CLAUDE_CONFIG_DIR": "/home/node/.claude",
+		"CLAUDE_CONFIG_DIR": "/home/vscode/.claude",
 		"POWERLEVEL9K_DISABLE_GITSTATUS": "true"
 	},
 	"mounts": [
@@ -52,7 +61,7 @@
 		},
 		{
 			"source": "claude-code-config-${devcontainerId}",
-			"target": "/home/node/.claude",
+			"target": "/home/vscode/.claude",
 			"type": "volume"
 		}
 	],

@@ -47,7 +47,7 @@ The satellite uses a **simple state machine architecture** for stability and per
 **Key Design Benefits:**
 - **Simplified Threading**: Only MQTT runs in separate thread for network I/O
 - **Predictable Behavior**: Clear state transitions eliminate race conditions  
-- **Resource Efficiency**: Direct audio I/O without complex queuing
+- **Resource Efficiency**: Callback-based audio I/O with efficient buffering
 - **Stable Operation**: No queue overflows or threading conflicts
 
 ## 🚀 Quick Start
@@ -79,6 +79,7 @@ sudo apt-get install -y \
     libportaudio2 \
     libportaudiocpp0 \
     portaudio19-dev \
+    libsndfile1-dev \
     python3.12-dev \
     git
 
@@ -97,8 +98,8 @@ cd private-assistant-comms-satellite-py
 # Install dependencies (development)
 uv sync --group dev
 
-# Install with audio support (for deployment)
-uv sync --group audio
+# Install for deployment (all dependencies included)
+uv sync
 ```
 
 #### 3. Quick Configuration
@@ -151,7 +152,7 @@ room: "livingroom"
 mqtt_server_host: "your-mqtt-broker.local"
 mqtt_server_port: 1883
 
-# Audio device indices (run 'python -m pyaudio' to list devices)
+# Audio device indices (use 'python -c "import sounddevice; print(sounddevice.query_devices())"' to list devices)
 input_device_index: 1   # Your microphone
 output_device_index: 1  # Your speaker
 ```
@@ -184,7 +185,7 @@ max_command_input_seconds: 15  # Longer timeout for complex commands
 
 ```bash
 # List available audio devices
-python -c "import pyaudio; p=pyaudio.PyAudio(); [print(f'{i}: {p.get_device_info_by_index(i)}') for i in range(p.get_device_count())]; p.terminate()"
+python -c "import sounddevice as sd; print(sd.query_devices())"
 
 # Test microphone input
 arecord -l  # List recording devices
@@ -427,7 +428,7 @@ top -p $(pgrep -f comms-satellite)
 #### Audio Device Problems
 ```bash
 # Check audio devices
-python -c "import pyaudio; p=pyaudio.PyAudio(); print(f'Devices: {p.get_device_count()}'); p.terminate()"
+python -c "import sounddevice as sd; print(f'Devices: {len(sd.query_devices())}')"
 
 # Test microphone
 arecord -D hw:1,0 -f cd -t wav -r 16000 test.wav
@@ -496,7 +497,7 @@ git clone https://github.com/stkr22/private-assistant-comms-satellite-py.git
 cd private-assistant-comms-satellite-py
 
 # Install development dependencies
-uv sync --group dev --group audio
+uv sync --group dev
 
 # Install pre-commit hooks
 uv run pre-commit install
@@ -575,5 +576,5 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 - **OpenWakeWord** - Wake word detection engine
 - **Silero VAD** - Voice activity detection
 - **Private Assistant Commons** - Shared utilities and message formats
-- **PyAudio** - Python audio I/O library
+- **sounddevice** - Python audio I/O library with NumPy integration
 - **aiomqtt** - Async MQTT client library

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import enum
+import queue
 import threading
 import time
 import uuid
@@ -10,17 +11,19 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from private_assistant_commons import messages
 
-# AIDEV-NOTE: Import pyaudio as optional dependency for CI/CD compatibility
+try:
+    import sounddevice as sd
+except OSError as e:
+    if "PortAudio library not found" in str(e):
+        # Expected in environments without audio hardware
+        sd = None
+    else:
+        raise
+
 if TYPE_CHECKING:
     import logging
 
     import openwakeword
-    import pyaudio
-else:
-    try:
-        import pyaudio
-    except ImportError:
-        pyaudio = None
 
 from private_assistant_comms_satellite import silero_vad
 from private_assistant_comms_satellite.utils import (
@@ -78,28 +81,78 @@ class Satellite:
         # AIDEV-NOTE: Timing tracking
         self._stop_sound_time = 0.0
 
-        # AIDEV-NOTE: PyAudio initialization - critical dependency for edge device audio I/O
-        if pyaudio is None:
-            raise ImportError(
-                "PyAudio is required for audio processing: pip install 'private-assistant-comms-satellite[audio]'"
-            )
+        # AIDEV-NOTE: Audio queues for callback-based streaming
+        self._audio_queue: queue.Queue[np.ndarray] = queue.Queue()
+        self._output_buffer: np.ndarray = np.array([], dtype=np.float32)
+        self._output_position = 0
+        self._running = False
+        self._input_stream: sd.InputStream | None = None
+        self._output_stream: sd.OutputStream | None = None
 
-        self.p: Any = pyaudio.PyAudio()
-        self.stream_input: Any = self.p.open(
-            format=pyaudio.paInt16,
-            channels=1,
-            rate=self.config.samplerate,
-            input=True,
-            frames_per_buffer=self.config.chunk_size,
-            input_device_index=self.config.input_device_index,
-        )
-        self.stream_output: Any = self.p.open(
-            format=pyaudio.paInt16,
-            channels=1,
-            rate=self.config.samplerate,
-            output=True,
-            output_device_index=self.config.output_device_index,
-        )
+        # AIDEV-NOTE: Sounddevice uses float32 internally but we'll work with int16 for OpenWakeWord compatibility
+        self._audio_dtype = np.int16
+        self._samplerate = config.samplerate
+        self._chunk_size_ow = config.chunk_size_ow
+
+        # AIDEV-NOTE: Convert notification sounds from bytes to numpy arrays for sounddevice
+        self._start_sound_array = self._bytes_to_audio_array(start_listening_sound)
+        self._stop_sound_array = self._bytes_to_audio_array(stop_listening_sound)
+
+    def _bytes_to_audio_array(self, audio_bytes: bytes) -> np.ndarray:
+        """Convert audio bytes to numpy array suitable for sounddevice playback."""
+        # Convert int16 bytes to numpy array
+        audio_array = np.frombuffer(audio_bytes, dtype=np.int16)
+        # Sounddevice expects float32 in range [-1.0, 1.0] for optimal performance
+        return audio_array.astype(np.float32) / 32768.0
+
+    def _audio_callback(self, indata: np.ndarray, frames: int, time_info: Any, status: sd.CallbackFlags) -> None:  # noqa: ARG002
+        """Audio input callback - processes incoming audio for wakeword detection."""
+        if status:
+            self.logger.warning("Audio callback status: %s", status)
+
+        try:
+            # Convert float32 back to int16 for OpenWakeWord
+            audio_int16 = (indata[:, 0] * 32768.0).astype(np.int16)
+
+            # AIDEV-NOTE: Put audio data in queue for processing thread
+            self._audio_queue.put_nowait(audio_int16)
+        except queue.Full:
+            self.logger.warning("Audio queue full, dropping frame")
+
+    def _output_callback(self, outdata: np.ndarray, frames: int, time_info: Any, status: sd.CallbackFlags) -> None:  # noqa: ARG002
+        """Audio output callback - plays notification sounds."""
+        if status:
+            self.logger.warning("Audio output callback status: %s", status)
+
+        # Fill output with silence by default
+        outdata.fill(0)
+        
+        # Check if we have audio data to play
+        if len(self._output_buffer) > self._output_position:
+            # Calculate how many samples we can copy
+            remaining_samples = len(self._output_buffer) - self._output_position
+            samples_to_copy = min(frames, remaining_samples)
+            
+            # Copy audio data to output
+            start_pos = self._output_position
+            end_pos = self._output_position + samples_to_copy
+            outdata[:samples_to_copy, 0] = self._output_buffer[start_pos:end_pos]
+            self._output_position += samples_to_copy
+            
+            # Reset buffer when finished
+            if self._output_position >= len(self._output_buffer):
+                self._output_buffer = np.array([], dtype=np.float32)
+                self._output_position = 0
+
+    def _queue_sound(self, sound_array: np.ndarray) -> None:
+        """Queue a sound for playback via output stream."""
+        self._output_buffer = sound_array.copy()
+        self._output_position = 0
+        self.logger.debug("Queued sound for playback (duration: %.2f seconds)", len(sound_array) / self._samplerate)
+
+    def _is_sound_playing(self) -> bool:
+        """Check if sound is currently playing."""
+        return len(self._output_buffer) > 0 and self._output_position < len(self._output_buffer)
 
     def _get_state(self) -> SatelliteState:
         """Thread-safe state getter."""
@@ -117,36 +170,65 @@ class Satellite:
         """Process pending TTS responses from the assistant."""
         try:
             response = self.output_queue.get_nowait()
-            self.logger.debug("Received new message: '%s'", response.text)
+            self.logger.info("Received TTS message: '%s'", response.text)
 
             # AIDEV-NOTE: Set state to waiting, then speaking
             self._set_state(SatelliteState.WAITING)
 
-            # Get TTS audio synchronously
-            tts_start_time = time.time()
-            audio_bytes = await speech_recognition_tools.send_text_to_tts_api(response.text, self.config)
-            tts_processing_time = time.time() - tts_start_time
+            try:
+                # Get TTS audio synchronously
+                tts_start_time = time.time()
+                audio_bytes = await speech_recognition_tools.send_text_to_tts_api(response.text, self.config)
+                tts_processing_time = time.time() - tts_start_time
+                
+                self.logger.debug("TTS processing completed in %.3f seconds", tts_processing_time)
 
-            if audio_bytes:
-                self._set_state(SatelliteState.SPEAKING)
-                playback_start_time = time.time()
-                # Calculate total processing time from stop sound to TTS playback start
-                if self._stop_sound_time > 0:
-                    total_processing_time = playback_start_time - self._stop_sound_time
-                    self.logger.debug("Total processing time (STT + LLM + TTS): %.3f seconds", total_processing_time)
+                if audio_bytes:
+                    self.logger.info("TTS audio received, starting playback")
+                    self._set_state(SatelliteState.SPEAKING)
+                    playback_start_time = time.time()
+                    # Calculate total processing time from stop sound to TTS playback start
+                    if self._stop_sound_time > 0:
+                        total_processing_time = playback_start_time - self._stop_sound_time
+                        self.logger.debug(
+                            "Total processing time (STT + LLM + TTS): %.3f seconds", 
+                            total_processing_time
+                        )
 
-                self.logger.debug("Starting TTS playback at: %.3f", playback_start_time)
-                # Play audio directly
-                self.stream_output.write(audio_bytes)
-                playback_duration = time.time() - playback_start_time
-                self.logger.debug(
-                    "Finished playing TTS audio (TTS processing: %.3f seconds, playback duration: %.3f seconds)",
-                    tts_processing_time,
-                    playback_duration,
-                )
+                    self.logger.debug("Starting TTS playback at: %.3f", playback_start_time)
+                    # Convert audio bytes to sounddevice format and queue for playback
+                    tts_audio_array = self._bytes_to_audio_array(audio_bytes)
+                    self._queue_sound(tts_audio_array)
+                    
+                    # Wait for playback to actually complete by polling
+                    estimated_duration = len(tts_audio_array) / self._samplerate
+                    self.logger.debug(
+                        "Waiting for TTS audio playback to complete (estimated: %.2f seconds)", 
+                        estimated_duration
+                    )
+                    
+                    max_wait_time = estimated_duration + 5.0  # Maximum wait with buffer
+                    start_wait = time.time()
+                    
+                    while self._is_sound_playing() and (time.time() - start_wait) < max_wait_time:
+                        await asyncio.sleep(0.1)  # Check every 100ms
+                    
+                    playback_duration = time.time() - playback_start_time
+                    self.logger.debug("TTS playback completed after %.3f seconds", playback_duration)
+                    self.logger.debug(
+                        "Finished playing TTS audio (TTS processing: %.3f seconds, playback duration: %.3f seconds)",
+                        tts_processing_time,
+                        playback_duration,
+                    )
+                else:
+                    self.logger.warning("No TTS audio received from API")
 
-            # Return to listening state
-            self._set_state(SatelliteState.LISTENING)
+            except Exception as e:
+                self.logger.error("Error in TTS processing: %s", e, exc_info=True)
+            finally:
+                # Always return to listening state, even if there was an error
+                self.logger.info("Returning to listening state")
+                self._set_state(SatelliteState.LISTENING)
 
         except asyncio.QueueEmpty:
             pass  # No messages to process
@@ -185,48 +267,54 @@ class Satellite:
             active_listening = True
 
             while active_listening:
-                # Read directly from audio stream
-                audio_bytes = self.stream_input.read(self.config.chunk_size, exception_on_overflow=False)
+                try:
+                    # Get audio data from callback queue (non-blocking)
+                    audio_int16 = self._audio_queue.get_nowait()
+                    # Convert to bytes for VAD model (which expects bytes)
+                    audio_bytes = audio_int16.tobytes()
 
-                if self.vad_model(audio_bytes) > self.config.vad_threshold:
-                    # Convert audio to float32
-                    raw_audio_data = np.frombuffer(audio_bytes, dtype=np.int16)
-                    audio_chunk = raw_audio_data.astype(np.float32) / 32768.0
+                    if self.vad_model(audio_bytes) > self.config.vad_threshold:
+                        # Convert int16 to float32 for buffer storage
+                        audio_chunk = audio_int16.astype(np.float32) / 32768.0
 
-                    silence_packages = 0
-                    if not self._append_to_audio_buffer(audio_chunk):
-                        active_listening = False
-                        self.logger.warning("Audio buffer full, stopping recording")
-                    else:
-                        has_audio_data = True
-                    self.logger.debug("Received voice...")
-                else:
-                    if has_audio_data:
-                        raw_audio_data = np.frombuffer(audio_bytes, dtype=np.int16)
-                        audio_chunk = raw_audio_data.astype(np.float32) / 32768.0
-
+                        silence_packages = 0
                         if not self._append_to_audio_buffer(audio_chunk):
                             active_listening = False
                             self.logger.warning("Audio buffer full, stopping recording")
                         else:
-                            silence_packages += 1
-                    self.logger.debug("No voice...")
+                            has_audio_data = True
+                        self.logger.debug("Received voice...")
+                    else:
+                        if has_audio_data:
+                            # Convert int16 to float32 for buffer storage
+                            audio_chunk = audio_int16.astype(np.float32) / 32768.0
 
-                if has_audio_data and (self._buffer_position > max_frames or silence_packages >= max_silent_packages):
-                    active_listening = False
-                    recording_duration = time.time() - recording_start_time
-                    self.logger.debug("Stopping listening, playing stop sound...")
-                    self.stream_output.write(self.stop_listening_sound)
-                    self.logger.debug("Recording duration: %.3f seconds", recording_duration)
+                            if not self._append_to_audio_buffer(audio_chunk):
+                                active_listening = False
+                                self.logger.warning("Audio buffer full, stopping recording")
+                            else:
+                                silence_packages += 1
+                        self.logger.debug("No voice...")
 
-                    # Process STT
-                    audio_frames = self._get_recorded_audio()
-                    if len(audio_frames) > 0:
-                        # Store stop sound time for total processing calculation
-                        self._stop_sound_time = time.time()
-                        await self._process_stt(audio_frames)
+                    buffer_full = self._buffer_position > max_frames
+                    silence_exceeded = silence_packages >= max_silent_packages
+                    if has_audio_data and (buffer_full or silence_exceeded):
+                        active_listening = False
+                        recording_duration = time.time() - recording_start_time
+                        self.logger.debug("Stopping listening, playing stop sound...")
+                        self._queue_sound(self._stop_sound_array)
+                        self.logger.debug("Recording duration: %.3f seconds", recording_duration)
 
-                await asyncio.sleep(0.001)
+                        # Process STT
+                        audio_frames = self._get_recorded_audio()
+                        if len(audio_frames) > 0:
+                            # Store stop sound time for total processing calculation
+                            self._stop_sound_time = time.time()
+                            await self._process_stt(audio_frames)
+
+                except queue.Empty:
+                    # No audio data available, yield control
+                    await asyncio.sleep(0.001)
 
         finally:
             self._set_state(SatelliteState.LISTENING)
@@ -289,37 +377,55 @@ class Satellite:
         self._mqtt_thread.start()
         time.sleep(1)  # Give MQTT client time to start
 
+    async def _process_audio_queue(self) -> None:
+        """Process audio queue for wakeword detection and recording."""
+        while self._running:
+            try:
+                current_state = self._get_state()
+
+                # Get audio data from queue (non-blocking) - always drain the queue to prevent buildup
+                try:
+                    audio_chunk = self._audio_queue.get_nowait()
+                    
+                    # Only process audio for wake word in LISTENING state
+                    if current_state == SatelliteState.LISTENING:
+                        # AIDEV-NOTE: Process wakeword detection with OpenWakeWord
+                        prediction = self.wakeword_model.predict(
+                            audio_chunk,
+                            debounce_time=2.0,
+                            threshold={self.config.name_wakeword_model: self.config.wakework_detection_threshold},
+                        )
+                        wakeword_probability = prediction[self.config.name_wakeword_model]
+
+                        self.logger.debug(
+                            "Wakeword probability: %s, Threshold: %s",
+                            wakeword_probability,
+                            self.config.wakework_detection_threshold,
+                        )
+
+                        if wakeword_probability >= self.config.wakework_detection_threshold:
+                            self.logger.debug("Wakeword detected, playing start listening sound.")
+                            self._queue_sound(self._start_sound_array)
+                            await self._record_command()
+                    else:
+                        # In other states, just drain the queue to prevent buildup
+                        self.logger.debug("Draining audio queue (state: %s)", current_state.value)
+                        
+                except queue.Empty:
+                    # No audio data available, yield control
+                    await asyncio.sleep(0.001)
+
+            except Exception as e:
+                self.logger.error("Error processing audio: %s", e)
+                await asyncio.sleep(0.01)
+
     async def _main_loop(self) -> None:
         """Main processing loop - handles wake word detection and state transitions."""
         try:
+            # Start audio processing task
+            audio_task = asyncio.create_task(self._process_audio_queue())
+            
             while True:
-                current_state = self._get_state()
-
-                # Only process audio for wake word in LISTENING state
-                if current_state == SatelliteState.LISTENING:
-                    # Read audio chunk optimized for wake word detection
-                    audio_data = self.stream_input.read(self.config.chunk_size_ow, exception_on_overflow=False)
-                    audio_np = np.frombuffer(audio_data, dtype=np.int16)
-
-                    # Wake word detection
-                    prediction = self.wakeword_model.predict(
-                        audio_np,
-                        debounce_time=2.0,
-                        threshold={self.config.name_wakeword_model: self.config.wakework_detection_threshold},
-                    )
-                    wakeword_probability = prediction[self.config.name_wakeword_model]
-
-                    self.logger.debug(
-                        "Wakeword probability: %s, Threshold: %s",
-                        wakeword_probability,
-                        self.config.wakework_detection_threshold,
-                    )
-
-                    if wakeword_probability >= self.config.wakework_detection_threshold:
-                        self.logger.debug("Wakeword detected, playing start listening sound.")
-                        self.stream_output.write(self.start_listening_sound)
-                        await self._record_command()
-
                 # Always check for TTS messages (low latency MQTT processing)
                 await self._process_output_queue()
 
@@ -328,27 +434,90 @@ class Satellite:
 
         except KeyboardInterrupt:
             self.logger.info("Received interrupt signal")
+            audio_task.cancel()
             raise
 
     def start(self) -> None:
         """Start the satellite with simple state machine."""
-        # Start MQTT client in separate thread
-        self._start_mqtt_loop()
+        self.logger.info("Starting sounddevice satellite...")
 
-        # Run main processing loop
+        if sd is None:
+            raise ImportError(
+                "sounddevice is required for audio processing but PortAudio library not found. "
+                "Please install system audio dependencies (see README.md)"
+            )
+
         try:
+            self._running = True
+
+            # AIDEV-NOTE: Initialize input stream with callback-based approach for device consistency
+            has_input_device = hasattr(self.config, 'input_device_index')
+            input_device = None
+            if has_input_device and self.config.input_device_index is not None:
+                input_device = self.config.input_device_index
+            self._input_stream = sd.InputStream(
+                samplerate=self._samplerate,
+                channels=1,
+                dtype=np.float32,  # Sounddevice native format
+                blocksize=self._chunk_size_ow,  # Fixed chunk size for OpenWakeWord
+                callback=self._audio_callback,
+                device=input_device,  # Use configured input device
+            )
+
+            # AIDEV-NOTE: Initialize output stream for notification sounds using same device
+            has_output_device = hasattr(self.config, 'output_device_index')
+            output_device = None
+            if has_output_device and self.config.output_device_index is not None:
+                output_device = self.config.output_device_index
+            if output_device is None and input_device is not None:
+                # If no output device specified but input is, try to use same device
+                output_device = input_device
+            
+            self._output_stream = sd.OutputStream(
+                samplerate=self._samplerate,
+                channels=1,
+                dtype=np.float32,  # Sounddevice native format
+                callback=self._output_callback,
+                device=output_device,  # Use same device as input for consistency
+            )
+
+            self.logger.info("Audio stream configuration:")
+            self.logger.info("  Sample rate: %d Hz", self._samplerate)
+            self.logger.info("  Chunk size: %d samples", self._chunk_size_ow)
+            self.logger.info("  Input device: %s", self._input_stream.device)
+            self.logger.info("  Output device: %s", self._output_stream.device)
+
+            # Start both streams
+            self._input_stream.start()
+            self._output_stream.start()
+
+            # Start MQTT client in separate thread
+            self._start_mqtt_loop()
+
+            # Run main processing loop
             asyncio.run(self._main_loop())
+
         except KeyboardInterrupt:
             self.logger.info("Received interrupt signal")
             raise
+        except Exception as e:
+            self.logger.error("Error starting satellite: %s", e)
+            raise
+        finally:
+            self.cleanup()
 
     def cleanup(self) -> None:
         """Clean up resources including MQTT client and audio streams."""
+        self.logger.info("Cleaning up sounddevice satellite...")
+        self._running = False
+
         if self._mqtt_thread and self._mqtt_thread.is_alive():
             self._mqtt_thread.join(timeout=2.0)
 
-        self.stream_input.stop_stream()
-        self.stream_output.stop_stream()
-        self.stream_input.close()
-        self.stream_output.close()
-        self.p.terminate()
+        if self._input_stream:
+            self._input_stream.stop()
+            self._input_stream.close()
+
+        if self._output_stream:
+            self._output_stream.stop()
+            self._output_stream.close()
