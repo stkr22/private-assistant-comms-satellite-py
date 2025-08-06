@@ -1,12 +1,19 @@
 # AGENTS.md
 
-## Primary Directive
-When uncertain about implementation details or requirements, ask for clarification before proceeding.
+*Last updated 2025-07-15*
+
+---
 
 ## Project Structure and Organization
 
+### Primary Directives
+
+When uncertain about implementation details or requirements, ask for clarification before proceeding.
+Break down the task at hand and chalk out a rough plan for carrying it out, referencing project conventions and best practices.
+
 ### Directory Layout
-```
+
+```graph
 project/
 ├── src/              # Primary workspace for all code changes
 ├── tests/            # Read-only - owned by humans
@@ -15,57 +22,67 @@ project/
 └── pyproject.toml    # Modifiable with approval
 ```
 
-### Working Guidelines
-- Focus modifications on `src/` directory
-- Check for local AGENTS.md files in subdirectories before editing
-- Preserve existing file organization patterns
-- Maintain separation between source and test code
-
-## Build, Test, and Development Commands
-
-### Environment Setup
-- Language: Python 3.12+
-- Package Manager: UV
+## Build & Commands
 
 ### Core Commands
+
 ```bash
+uv add pydantic~=2.9.0         # Add a dependency
 uv sync --group dev        # Install dependencies
 uv run pytest             # Verify changes work
-uv run ruff check .       # Check code quality
+uv run ruff check --fix .       # Check code quality
 uv run ruff format .      # Apply formatting
 uv run mypy src/          # Validate types
 ```
 
 ### Command Usage
+
 - Run tests after implementing features
 - Apply formatting before committing
-- Use linting feedback to improve code quality
+- Use linting feedback to improve code quality. Only use "noqa" after asking the developer.
 
-## Code Style and Conventions
+## Code style and conventions
 
-### Python Standards
+- **Python**: 3.12+.
+- **Package Manager**: UV with pyproject.toml using dependency groups
+- **Testing**: pytest with coverage. Separate test files matching source file patterns.
+- **Formatting and Linting**: `ruff` enforces 120-char lines, double quotes, sorted imports. Standard `ruff` linter rules.
+- **Type Checking**: mypy in strict mode
+- **Typing**: Strict (Pydantic v2 models preferred);
+- **Naming**: `snake_case` (functions/variables), `PascalCase` (classes), `SCREAMING_SNAKE` (constants).
+
+### Code Documentation
+
+- **Code Documentation**: Google-style docstrings for public functions/classes.
+- **Enduser and Developer Documentation**: Markdown in ./docs folder.
+  - Keep documentation short and to the point.
+  - Information about implementation / usage should be in a single place. If needed somewhere else, use references.
+  - Focus documentation on the use case. Ask if you want to add information like troubleshooting or performance optimization.
+
+### Anchor comments
+
 ```python
-from __future__ import annotations  # Always include
-
-def function_name(param: str) -> dict[str, Any]:
-    """Google-style docstring for public functions."""
-    return {"result": param}
+# AIDEV-NOTE: Critical performance path - benchmark before changing
+# AIDEV-TODO: Refactor after v2.0 release
+# AIDEV-QUESTION: Consider caching strategy here?
 ```
 
-### Naming Patterns
-- Functions and variables: `snake_case`
-- Classes: `PascalCase`
-- Constants: `SCREAMING_SNAKE`
-
-### String and Format Rules
-- Use double quotes for strings
-- Limit lines to 120 characters
-- Sort imports alphabetically
-- Type annotate public interfaces
+- Search for existing AIDEV-* comments first
+- Update anchors when modifying related code
+- Keep comments under 120 characters
+- Place anchors above relevant code blocks
+- Ask before removing `AIDEV-NOTE:`
+- Make sure to add relevant anchor comments, whenever a file or piece of code is:
+  - too long, or
+  - too complex, or
+  - very important, or
+  - confusing, or
+  - could have a bug unrelated to the task you are currently working on.
 
 ## Architecture and Design Patterns
 
 ### Error Handling Architecture
+
 ```python
 # exceptions.py - centralized exception definitions
 class ProjectError(Exception):
@@ -76,6 +93,7 @@ class ValidationError(ProjectError):
 ```
 
 ### Resource Management
+
 ```python
 # Use context managers
 with open_database() as db:
@@ -88,89 +106,38 @@ finally:
     await cleanup_resources()
 ```
 
-### Code Documentation
-```python
-# AIDEV-NOTE: Critical performance path - benchmark before changing
-# AIDEV-TODO: Refactor after v2.0 release
-# AIDEV-QUESTION: Consider caching strategy here?
-```
-
-Documentation rules:
-- Search for existing AIDEV-* comments first
-- Update anchors when modifying related code
-- Keep comments under 120 characters
-- Place anchors above relevant code blocks
-
-### Change Management
-- Request approval for changes exceeding 300 lines
-- Request approval for modifications spanning 4+ files
-- Break large refactors into incremental commits
-
 ## Testing Guidelines
 
+If **outdated** tests block your implementation suggest changing them.
+
 ### Testing Boundaries
+
 - Tests define behavioral contracts (human domain)
 - Read test files to understand expected behavior
 - Use test failures to guide implementation
 - Report test gaps discovered during implementation
 
 ### Test-Driven Development Support
+
 - Implement code to pass existing tests
 - Suggest test scenarios for new functionality
-- Maintain backward compatibility with test suite
 
 ## Security Considerations
 
 ### Secure Coding Practices
+
 - Store credentials in environment variables
 - Validate all external inputs
 - Use parameterized queries for databases
 - Apply principle of least privilege
+- Base examples and documentation on fictional scenarios instead of references from instructions.
 
-### Configuration Security
-```python
-# Correct approach
-api_key = os.environ.get("API_KEY")
+## Git Workflow
 
-# Instead of hardcoding
-api_key = "sk-abc123"  # Never do this
-```
-
-## Workflow Integration
-
-### Git Commit Standards
-Format: `type: description [AI]`
-
-Types:
-- feat: New functionality
-- fix: Bug repairs
-- refactor: Code restructuring
-- perf: Performance improvements
-- docs: Documentation updates
-
-Examples:
-```
-feat: implement user authentication [AI]
-fix: correct memory leak in parser [AI]
-refactor: simplify database connection logic [AI]
-```
-
-### Commit Practices
-- Create one commit per logical change
-- Reference issues using "closes #123"
-- Work on feature branches
-- Mark AI contributions with [AI] tag
-
-### Task Execution Flow
-1. Parse requirements and locate relevant AGENTS.md files
-2. Request clarification for ambiguous requirements
-3. Present implementation approach for complex tasks
-4. Execute implementation following conventions
-5. Update AIDEV-* markers in modified code
-6. Report completion status to user
-
-### Session Management
-Start fresh session when:
-- Task context differs significantly from current work
-- Memory/context becomes unclear
-- User requests unrelated functionality
+- **Granular commits**: One logical change per commit. The LEAST is ONE commit per issue.
+- **Tag AI-generated commits**: e.g., `feat: optimise feed query [AI]`.
+- **Clear commit messages**: Explain the *why*; link to issues/ADRs if architectural. If an issue is fixed reference it as closes #XX. One reference per issue.
+- **Always use conventional commit standard with gitmoji**: e.g. "feat:" "perf: :zap:"
+- **Never commit to main**: Always work with separate branches and Pull Requests.
+- **NO attribution to Claude or any AI tool** - Never include "Generated by Claude" or any co-author information
+- **Keep Commit messages concise** - Keep commit message length below 300 characters
