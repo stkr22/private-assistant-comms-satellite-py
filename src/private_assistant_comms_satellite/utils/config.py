@@ -39,8 +39,8 @@ class Config(BaseModel):
     base_topic_overwrite: str | None = None
     input_topic_overwrite: str | None = None
     output_topic_overwrite: str | None = None
-    start_listening_path: str = "sounds/start_listening.wav"
-    stop_listening_path: str = "sounds/stop_listening.wav"
+    start_listening_path: str | None = None
+    stop_listening_path: str | None = None
 
     @property
     def base_topic(self) -> str:
