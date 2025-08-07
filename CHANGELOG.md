@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v1.0.0...v1.1.0) (2025-08-07)
+
+
+### Features
+
+* :sound: add programmatic sweep sound generation [AI] ([d4ac0e6](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/d4ac0e6dae497fbbb37aaf8b3a1ab51db139ed45))
+* :sound: add programmatic sweep sound generation [AI] ([ec67ba4](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/ec67ba44a2a2e249248b0b850906ee22ff179147))
+
 ## [1.0.0](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v0.6.0...v1.0.0) (2025-08-06)
 
 
