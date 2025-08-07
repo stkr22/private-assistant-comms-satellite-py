@@ -17,23 +17,6 @@ class STTResponse(BaseModel):
     message: str
 
 
-def int2float(sound: np_typing.NDArray[np.int16]) -> np_typing.NDArray[np.float32]:
-    """Convert 16-bit integer audio to float32 format for API processing.
-
-    Args:
-        sound: 16-bit integer audio array
-
-    Returns:
-        Float32 audio array normalized to [-1, 1] range
-    """
-    # AIDEV-NOTE: Optimized NumPy operations for real-time audio conversion
-    abs_max = np.abs(sound).max()
-    sound_32: np_typing.NDArray[np.float32] = sound.astype(np.float32)
-    if abs_max > 0:
-        sound_32 *= 1 / 32768
-    return sound_32.squeeze()
-
-
 async def send_audio_to_stt_api(
     audio_data: np_typing.NDArray[np.float32],
     config_obj: config.Config,
