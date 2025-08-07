@@ -49,8 +49,8 @@ class Satellite:
         self,
         config: config.Config,
         output_queue: asyncio.Queue[messages.Response],
-        start_listening_sound: bytes,
-        stop_listening_sound: bytes,
+        start_listening_sound: bytes | np.ndarray,
+        stop_listening_sound: bytes | np.ndarray,
         wakeword_model: openwakeword.Model,
         mqtt_client: mqtt_utils.AsyncMQTTClient,
         logger: logging.Logger,
@@ -58,9 +58,9 @@ class Satellite:
         # Assign configuration
         self.config = config
         self.output_queue = output_queue
-        # Assign preloaded WAV data
-        self.start_listening_sound: bytes = start_listening_sound
-        self.stop_listening_sound: bytes = stop_listening_sound
+        # Assign preloaded sound data (bytes or arrays)
+        self.start_listening_sound: bytes | np.ndarray = start_listening_sound
+        self.stop_listening_sound: bytes | np.ndarray = stop_listening_sound
         self.vad_model = silero_vad.SileroVad(threshold=config.vad_threshold, trigger_level=config.vad_trigger)
         self.logger = logger
         # Assign wakeword model
@@ -94,9 +94,24 @@ class Satellite:
         self._samplerate = config.samplerate
         self._chunk_size_ow = config.chunk_size_ow
 
-        # AIDEV-NOTE: Convert notification sounds from bytes to numpy arrays for sounddevice
-        self._start_sound_array = self._bytes_to_audio_array(start_listening_sound)
-        self._stop_sound_array = self._bytes_to_audio_array(stop_listening_sound)
+        # AIDEV-NOTE: Convert notification sounds to numpy arrays for sounddevice
+        self._start_sound_array = self._to_audio_array(start_listening_sound)
+        self._stop_sound_array = self._to_audio_array(stop_listening_sound)
+
+    def _to_audio_array(self, audio_data: bytes | np.ndarray) -> np.ndarray:
+        """Convert audio data (bytes or array) to numpy array suitable for sounddevice playback."""
+        if isinstance(audio_data, bytes):
+            # Convert int16 bytes to numpy array
+            audio_array = np.frombuffer(audio_data, dtype=np.int16)
+            # Sounddevice expects float32 in range [-1.0, 1.0] for optimal performance
+            return audio_array.astype(np.float32) / 32768.0
+        if isinstance(audio_data, np.ndarray):
+            # Already a numpy array (should be float32 from sound generation)
+            if audio_data.dtype == np.float32:
+                return audio_data.copy()
+            # Convert to float32 if needed
+            return audio_data.astype(np.float32)
+        raise TypeError(f"Unsupported audio data type: {type(audio_data)}")
 
     def _bytes_to_audio_array(self, audio_bytes: bytes) -> np.ndarray:
         """Convert audio bytes to numpy array suitable for sounddevice playback."""
@@ -126,19 +141,19 @@ class Satellite:
 
         # Fill output with silence by default
         outdata.fill(0)
-        
+
         # Check if we have audio data to play
         if len(self._output_buffer) > self._output_position:
             # Calculate how many samples we can copy
             remaining_samples = len(self._output_buffer) - self._output_position
             samples_to_copy = min(frames, remaining_samples)
-            
+
             # Copy audio data to output
             start_pos = self._output_position
             end_pos = self._output_position + samples_to_copy
             outdata[:samples_to_copy, 0] = self._output_buffer[start_pos:end_pos]
             self._output_position += samples_to_copy
-            
+
             # Reset buffer when finished
             if self._output_position >= len(self._output_buffer):
                 self._output_buffer = np.array([], dtype=np.float32)
@@ -180,7 +195,7 @@ class Satellite:
                 tts_start_time = time.time()
                 audio_bytes = await speech_recognition_tools.send_text_to_tts_api(response.text, self.config)
                 tts_processing_time = time.time() - tts_start_time
-                
+
                 self.logger.debug("TTS processing completed in %.3f seconds", tts_processing_time)
 
                 if audio_bytes:
@@ -191,28 +206,26 @@ class Satellite:
                     if self._stop_sound_time > 0:
                         total_processing_time = playback_start_time - self._stop_sound_time
                         self.logger.debug(
-                            "Total processing time (STT + LLM + TTS): %.3f seconds", 
-                            total_processing_time
+                            "Total processing time (STT + LLM + TTS): %.3f seconds", total_processing_time
                         )
 
                     self.logger.debug("Starting TTS playback at: %.3f", playback_start_time)
                     # Convert audio bytes to sounddevice format and queue for playback
                     tts_audio_array = self._bytes_to_audio_array(audio_bytes)
                     self._queue_sound(tts_audio_array)
-                    
+
                     # Wait for playback to actually complete by polling
                     estimated_duration = len(tts_audio_array) / self._samplerate
                     self.logger.debug(
-                        "Waiting for TTS audio playback to complete (estimated: %.2f seconds)", 
-                        estimated_duration
+                        "Waiting for TTS audio playback to complete (estimated: %.2f seconds)", estimated_duration
                     )
-                    
+
                     max_wait_time = estimated_duration + 5.0  # Maximum wait with buffer
                     start_wait = time.time()
-                    
+
                     while self._is_sound_playing() and (time.time() - start_wait) < max_wait_time:
                         await asyncio.sleep(0.1)  # Check every 100ms
-                    
+
                     playback_duration = time.time() - playback_start_time
                     self.logger.debug("TTS playback completed after %.3f seconds", playback_duration)
                     self.logger.debug(
@@ -386,7 +399,7 @@ class Satellite:
                 # Get audio data from queue (non-blocking) - always drain the queue to prevent buildup
                 try:
                     audio_chunk = self._audio_queue.get_nowait()
-                    
+
                     # Only process audio for wake word in LISTENING state
                     if current_state == SatelliteState.LISTENING:
                         # AIDEV-NOTE: Process wakeword detection with OpenWakeWord
@@ -410,7 +423,7 @@ class Satellite:
                     else:
                         # In other states, just drain the queue to prevent buildup
                         self.logger.debug("Draining audio queue (state: %s)", current_state.value)
-                        
+
                 except queue.Empty:
                     # No audio data available, yield control
                     await asyncio.sleep(0.001)
@@ -424,7 +437,7 @@ class Satellite:
         try:
             # Start audio processing task
             audio_task = asyncio.create_task(self._process_audio_queue())
-            
+
             while True:
                 # Always check for TTS messages (low latency MQTT processing)
                 await self._process_output_queue()
@@ -451,7 +464,7 @@ class Satellite:
             self._running = True
 
             # AIDEV-NOTE: Initialize input stream with callback-based approach for device consistency
-            has_input_device = hasattr(self.config, 'input_device_index')
+            has_input_device = hasattr(self.config, "input_device_index")
             input_device = None
             if has_input_device and self.config.input_device_index is not None:
                 input_device = self.config.input_device_index
@@ -465,14 +478,14 @@ class Satellite:
             )
 
             # AIDEV-NOTE: Initialize output stream for notification sounds using same device
-            has_output_device = hasattr(self.config, 'output_device_index')
+            has_output_device = hasattr(self.config, "output_device_index")
             output_device = None
             if has_output_device and self.config.output_device_index is not None:
                 output_device = self.config.output_device_index
             if output_device is None and input_device is not None:
                 # If no output device specified but input is, try to use same device
                 output_device = input_device
-            
+
             self._output_stream = sd.OutputStream(
                 samplerate=self._samplerate,
                 channels=1,
