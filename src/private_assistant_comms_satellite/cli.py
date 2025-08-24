@@ -8,7 +8,6 @@ import yaml
 from private_assistant_commons import skill_logger
 from rich.console import Console
 
-from private_assistant_comms_satellite import __version__
 from private_assistant_comms_satellite.main import start_satellite
 from private_assistant_comms_satellite.utils.config import Config
 
@@ -63,12 +62,6 @@ def start(
         console.print(f"[red]Unexpected error: {e}[/red]")
         logger.error("Unexpected error in satellite application: %s", e, exc_info=True)
         raise typer.Exit(1) from e
-
-
-@app.command()
-def version() -> None:
-    """Show the version of the Private Assistant Communications Satellite."""
-    console.print(f"[blue]Private Assistant Communications Satellite[/blue] version [green]{__version__}[/green]")
 
 
 @app.command()
