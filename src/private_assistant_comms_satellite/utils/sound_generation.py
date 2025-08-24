@@ -97,6 +97,38 @@ def generate_stop_recording_sound(sample_rate: int = 16000) -> np_typing.NDArray
     return wave
 
 
+def generate_disconnection_warning_sound(sample_rate: int = 16000) -> np_typing.NDArray[np.float32]:
+    """Generate a warning sound for disconnection notification.
+
+    Creates a distinctive two-tone warning sound to alert the user that
+    the ground station is not connected.
+
+    Args:
+        sample_rate: Audio sample rate in Hz
+
+    Returns:
+        Float32 audio array suitable for sounddevice playback
+    """
+    # AIDEV-NOTE: Two-tone warning pattern to indicate connection issue
+    # First tone: lower frequency, shorter
+    tone1 = generate_sweep(400, 400, 0.15, sample_rate, amplitude=0.5)
+
+    # Small gap between tones
+    gap_duration = 0.05
+    gap_samples = int(sample_rate * gap_duration)
+    gap = np.zeros(gap_samples, dtype=np.float32)
+
+    # Second tone: same frequency, shorter
+    tone2 = generate_sweep(400, 400, 0.15, sample_rate, amplitude=0.5)
+
+    # Combine the tones with gap
+    wave = np.concatenate([tone1, gap, tone2])
+    wave_float32: np_typing.NDArray[np.float32] = wave.astype(np.float32)
+
+    logger.info("Generated disconnection warning sound: two-tone pattern, %d samples", len(wave_float32))
+    return wave_float32
+
+
 def generate_default_sounds(
     sample_rate: int = 16000,
 ) -> tuple[np_typing.NDArray[np.float32], np_typing.NDArray[np.float32]]:

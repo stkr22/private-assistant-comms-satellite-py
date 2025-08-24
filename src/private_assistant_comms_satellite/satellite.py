@@ -44,11 +44,12 @@ class SatelliteState(enum.Enum):
 class Satellite:
     """Main satellite class for voice interaction with ground station integration."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         config: config.Config,
         start_listening_sound: bytes | np.ndarray,
         stop_listening_sound: bytes | np.ndarray,
+        disconnection_sound: np.ndarray,
         wakeword_model: openwakeword.Model,
         logger: logging.Logger,
     ):
@@ -90,6 +91,7 @@ class Satellite:
         # AIDEV-NOTE: Convert notification sounds to numpy arrays for sounddevice
         self._start_sound_array = self._to_audio_array(start_listening_sound)
         self._stop_sound_array = self._to_audio_array(stop_listening_sound)
+        self._disconnection_sound_array = self._to_audio_array(disconnection_sound)
 
     def _to_audio_array(self, audio_data: bytes | np.ndarray) -> np.ndarray:
         """Convert audio data (bytes or array) to numpy array suitable for sounddevice playback."""
@@ -180,8 +182,10 @@ class Satellite:
             try:
                 # Check if ground station is still connected
                 if not self.ground_station.is_connected:
-                    self.logger.error("Ground station disconnected, stopping response handler")
-                    break
+                    self.logger.warning("Ground station disconnected, will reconnect on next command")
+                    # Don't break - just wait and continue the loop
+                    await asyncio.sleep(1.0)
+                    continue
 
                 # Check for responses from ground station
                 response = await self.ground_station.get_response(timeout=1.0)
@@ -245,6 +249,27 @@ class Satellite:
         self._reset_audio_buffer()
 
         try:
+            # AIDEV-NOTE: Ensure we're connected before sending commands
+            if not self.ground_station.is_connected:
+                self.logger.info("Ground station not connected, attempting to reconnect...")
+                max_retries = 3
+                for retry in range(max_retries):
+                    try:
+                        await self.ground_station.connect()
+                        self.logger.info("Successfully reconnected to ground station")
+                        break
+                    except Exception as e:
+                        self.logger.warning("Reconnection attempt %d/%d failed: %s", retry + 1, max_retries, e)
+                        if retry < max_retries - 1:
+                            await asyncio.sleep(2.0)
+                        else:
+                            self.logger.error("Failed to reconnect to ground station after %d attempts", max_retries)
+                            # Play disconnection warning sound to alert user
+                            self._queue_sound(self._disconnection_sound_array)
+                            # Return to listening state
+                            self._set_state(SatelliteState.LISTENING)
+                            return
+
             # Send START_COMMAND to ground station
             await self.ground_station.send_start_command()
 
@@ -300,8 +325,8 @@ class Satellite:
                         self.config.samplerate / self.config.chunk_size_ow
                     )
                     timeout_exceeded = total_packages >= max_packages
-                    
-                    # Stop recording if: 
+
+                    # Stop recording if:
                     # 1. We had audio data and (buffer full or silence exceeded), OR
                     # 2. Maximum recording time exceeded (fallback)
                     if (has_audio_data and (buffer_full or silence_exceeded)) or timeout_exceeded:
@@ -456,18 +481,29 @@ class Satellite:
 
             # Connect to ground station and run main processing loop
             async def run_with_ground_station():
+                reconnect_delay = 5
                 while self._running:
                     try:
-                        await self.ground_station.connect()
+                        # AIDEV-NOTE: Attempt connection only if not already connected
+                        if not self.ground_station.is_connected:
+                            self.logger.info("Attempting to connect to ground station...")
+                            await self.ground_station.connect()
+                            reconnect_delay = 5  # Reset delay on successful connection
+
                         await self._main_loop()
                     except websockets.exceptions.ConnectionClosedError:
-                        self.logger.warning("Ground station connection lost, attempting reconnect in 5 seconds...")
-                        await asyncio.sleep(5)
+                        self.logger.warning(
+                            "Ground station connection lost, attempting reconnect in %d seconds...", reconnect_delay
+                        )
+                        await asyncio.sleep(reconnect_delay)
+                        reconnect_delay = min(reconnect_delay * 2, 60)  # Exponential backoff up to 60 seconds
                     except Exception as e:
-                        self.logger.error("Ground station error: %s, retrying in 5 seconds...", e)
-                        await asyncio.sleep(5)
+                        self.logger.error("Ground station error: %s, retrying in %d seconds...", e, reconnect_delay)
+                        await asyncio.sleep(reconnect_delay)
+                        reconnect_delay = min(reconnect_delay * 2, 60)  # Exponential backoff up to 60 seconds
                     finally:
-                        await self.ground_station.disconnect()
+                        if self.ground_station.is_connected:
+                            await self.ground_station.disconnect()
 
             asyncio.run(run_with_ground_station())
 
