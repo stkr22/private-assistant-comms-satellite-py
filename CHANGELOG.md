@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.0](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v1.2.0...v1.3.0) (2025-08-24)
+
+
+### Features
+
+* :zap: optimize VAD using pysilero-vad 2.1.0 process_array method [AI] ([fad4d6b](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/fad4d6b1c30985eb845da8d9ea92f0c7dc17e047))
+
+
+### Bug Fixes
+
+* :bug: remove waiting state transition to prevent satellite getting stuck [AI] ([3bf7b4a](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/3bf7b4a5419f901fb590ae18ea3036b8c991a3ba))
+
 ## [1.2.0](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v1.1.0...v1.2.0) (2025-08-24)
 
 
