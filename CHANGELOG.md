@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v1.1.0...v1.2.0) (2025-08-24)
+
+
+### Features
+
+* 🚀 replace MQTT/STT/TTS with ground station WebSocket integration [AI] ([1e8e738](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/1e8e738664179aa5269a136e714e3d2fcaa7cffb))
+* 🚀 replace MQTT/STT/TTS with ground station WebSocket integration [AI] ([0e600c5](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/0e600c5de86d6676985c286b9478a1b09863fa35))
+
 ## [1.1.0](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v1.0.0...v1.1.0) (2025-08-07)
 
 
