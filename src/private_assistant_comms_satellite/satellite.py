@@ -315,8 +315,8 @@ class Satellite:
                         # Send END_COMMAND to ground station
                         await self.ground_station.send_end_command()
 
-                        # Set state to waiting for ground station response
-                        self._set_state(SatelliteState.WAITING)
+                        # Return to listening immediately - ground station can send responses anytime
+                        self._set_state(SatelliteState.LISTENING)
 
                 except queue.Empty:
                     # No audio data available, yield control
@@ -328,7 +328,7 @@ class Satellite:
             with suppress(Exception):
                 await self.ground_station.send_cancel_command()
         finally:
-            # Only return to listening if not already in waiting/speaking state
+            # Ensure we return to listening if still in recording state (error case)
             current_state = self._get_state()
             if current_state == SatelliteState.RECORDING:
                 self._set_state(SatelliteState.LISTENING)
