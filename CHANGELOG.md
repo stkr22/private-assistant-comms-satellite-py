@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.1](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v1.3.0...v1.3.1) (2025-08-24)
+
+
+### Bug Fixes
+
+* 🔌 implement automatic reconnection to ground station [AI] ([2715823](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/27158230f4282cb2eed26cd1a301d9db7a7bdba0))
+* 🔌 implement automatic reconnection to ground station [AI] ([ec98cf7](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/ec98cf7b25a530c5180919f23dfa193655eb4263))
+
+
+### Documentation
+
+* removing outdated system dependencies ([3a68e4c](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/3a68e4cbd995fec89ba9862903661689bda3bdce))
+
 ## [1.3.0](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v1.2.0...v1.3.0) (2025-08-24)
 
 
