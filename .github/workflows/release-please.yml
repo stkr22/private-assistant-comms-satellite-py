@@ -20,3 +20,4 @@ jobs:
         id: release
         with:
           token: ${{ steps.generate_token.outputs.token }}
+          release-type: python
