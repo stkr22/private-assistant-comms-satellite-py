@@ -1,22 +1,8 @@
 {
 	"name": "private-assistant-comms-satellite-dev-environment",
-	"build": {
-		"dockerfile": "Containerfile",
-		"context": "."
-	},
-	"features": {
-		"ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
-		"ghcr.io/devcontainers/features/github-cli:1": {},
-		"ghcr.io/devcontainers/features/common-utils:2": {
-			"installZsh": true,
-			"configureZshAsDefaultShell": true,
-			"installOhMyZsh": true,
-			"installOhMyZshConfig": true,
-			"upgradePackages": true
-		}
-	},
+	"image": "ghcr.io/stkr22/devcontainer-python-container:1.0.0@sha256:8d97a83cba32b1474bb692963b9495f62be7c94a4206d92a04fe7373ac6e0033",
 	"runArgs": [
-		"--cap-add=NET_RAW"
+		"--cap-add=NET_RAW" // Needed for Claude Code IDE integration
 	],
 	"customizations": {
 		"vscode": {
@@ -32,26 +18,9 @@
 				"oderwat.indent-rainbow",
 				"mhutchie.git-graph",
 				"vivaxy.vscode-conventional-commits",
-			],
-			"settings": {
-				"terminal.integrated.defaultProfile.linux": "zsh",
-				"terminal.integrated.profiles.linux": {
-					"bash": {
-						"path": "bash",
-						"icon": "terminal-bash"
-					},
-					"zsh": {
-						"path": "zsh"
-					}
-				},
-				"editor.formatOnSave": true
-			}
+				"Anthropic.claude-code"
+			]
 		}
-	},
-	"containerEnv": {
-		"HOME": "/home/vscode",
-		"CLAUDE_CONFIG_DIR": "/home/vscode/.claude",
-		"POWERLEVEL9K_DISABLE_GITSTATUS": "true"
 	},
 	"mounts": [
 		{
@@ -65,5 +34,5 @@
 			"type": "volume"
 		}
 	],
-	"postCreateCommand": "uv sync --group dev && echo 'Claude Code is ready! Run: claude' && echo 'For unattended operation: claude --dangerously-skip-permissions'"
+	"postCreateCommand": "uv sync --group dev"
 }
