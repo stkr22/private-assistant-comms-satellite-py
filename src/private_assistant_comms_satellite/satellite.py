@@ -253,17 +253,20 @@ class Satellite:
             max_silent_packages = self.config.samplerate / self.config.chunk_size * self.config.max_length_speech_pause
             has_audio_data = False
             active_listening = True
+            total_packages = 0  # AIDEV-NOTE: Fallback counter to prevent infinite recording
 
             while active_listening:
                 try:
                     # Get audio data from callback queue (non-blocking)
                     audio_int16 = self._audio_queue.get_nowait()
-                    # Convert to bytes for VAD model (which expects bytes)
-                    audio_bytes = audio_int16.tobytes()
+                    # Convert int16 to float32 for VAD model (which expects float32 arrays)
+                    audio_float32 = audio_int16.astype(np.float32) / 32768.0
 
-                    if self.vad_model(audio_bytes) > self.config.vad_threshold:
-                        # Convert int16 to float32 for buffer storage
-                        audio_chunk = audio_int16.astype(np.float32) / 32768.0
+                    total_packages += 1  # AIDEV-NOTE: Track total packages processed
+
+                    if self.vad_model(audio_float32):
+                        # Use already converted float32 audio for buffer storage
+                        audio_chunk = audio_float32
 
                         silence_packages = 0
                         if not self._append_to_audio_buffer(audio_chunk):
@@ -271,35 +274,49 @@ class Satellite:
                             self.logger.warning("Audio buffer full, stopping recording")
                         else:
                             has_audio_data = True
-                            # Send audio chunk to ground station
+                            # Send audio chunk to ground station (convert back to bytes)
+                            audio_bytes = audio_int16.tobytes()
                             await self.ground_station.send_audio_chunk(audio_bytes)
                         self.logger.debug("Received voice...")
                     else:
                         if has_audio_data:
-                            # Convert int16 to float32 for buffer storage
-                            audio_chunk = audio_int16.astype(np.float32) / 32768.0
+                            # Use already converted float32 audio for buffer storage
+                            audio_chunk = audio_float32
 
                             if not self._append_to_audio_buffer(audio_chunk):
                                 active_listening = False
                                 self.logger.warning("Audio buffer full, stopping recording")
                             else:
                                 silence_packages += 1
-                                # Send silence chunk to ground station too
+                                # Send silence chunk to ground station too (convert back to bytes)
+                                audio_bytes = audio_int16.tobytes()
                                 await self.ground_station.send_audio_chunk(audio_bytes)
                         self.logger.debug("No voice...")
 
+                    # AIDEV-NOTE: Enhanced termination conditions to prevent infinite recording
                     buffer_full = self._buffer_position > max_frames
                     silence_exceeded = silence_packages >= max_silent_packages
-                    if has_audio_data and (buffer_full or silence_exceeded):
+                    max_packages = self.config.max_command_input_seconds * (
+                        self.config.samplerate / self.config.chunk_size_ow
+                    )
+                    timeout_exceeded = total_packages >= max_packages
+                    
+                    # Stop recording if: 
+                    # 1. We had audio data and (buffer full or silence exceeded), OR
+                    # 2. Maximum recording time exceeded (fallback)
+                    if (has_audio_data and (buffer_full or silence_exceeded)) or timeout_exceeded:
                         active_listening = False
-                        self.logger.debug("Stopping listening, playing stop sound...")
+                        if timeout_exceeded and not has_audio_data:
+                            self.logger.warning("Recording timeout - no speech detected, stopping")
+                        else:
+                            self.logger.debug("Stopping listening, playing stop sound...")
                         self._queue_sound(self._stop_sound_array)
 
                         # Send END_COMMAND to ground station
                         await self.ground_station.send_end_command()
 
-                        # Set state to waiting for ground station response
-                        self._set_state(SatelliteState.WAITING)
+                        # Return to listening immediately - ground station can send responses anytime
+                        self._set_state(SatelliteState.LISTENING)
 
                 except queue.Empty:
                     # No audio data available, yield control
@@ -311,7 +328,7 @@ class Satellite:
             with suppress(Exception):
                 await self.ground_station.send_cancel_command()
         finally:
-            # Only return to listening if not already in waiting/speaking state
+            # Ensure we return to listening if still in recording state (error case)
             current_state = self._get_state()
             if current_state == SatelliteState.RECORDING:
                 self._set_state(SatelliteState.LISTENING)
