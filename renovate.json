@@ -3,8 +3,49 @@
   "extends": [
     "config:best-practices"
   ],
-  "schedule": ["* 16-19 15 * *"],
+  "prConcurrentLimit": 3,
+  "schedule": [
+    "* 16-19 15 * *"
+  ],
   "lockFileMaintenance": {
     "enabled": true
-  }
+  },
+  "packageRules": [
+    {
+      "matchUpdateTypes": [
+        "patch"
+      ],
+      "matchCurrentVersion": "!/^0/",
+      "automerge": true,
+      "groupName": "patch updates",
+      "groupSlug": "patches"
+    },
+    {
+      "matchUpdateTypes": [
+        "minor"
+      ],
+      "matchCurrentVersion": "!/^0/",
+      "groupName": "minor updates",
+      "groupSlug": "minors"
+    },
+    {
+      "matchDepTypes": [
+        "dev"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "dev dependencies",
+      "groupSlug": "dev-deps",
+      "automerge": true
+    },
+    {
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupName": "GitHub Actions",
+      "groupSlug": "github-actions"
+    }
+  ]
 }

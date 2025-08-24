@@ -1,10 +1,10 @@
 # Changes here will be overwritten by Copier
-_commit: 1.4.8
+_commit: v3.2.1
 _src_path: https://github.com/stkr22/copier-python-project.git
 author_email: stkr22@github.com
 author_full_name: stkr22
 codeowner_username: '@stkr22'
-copyright_license: GNU General Public License v3.0
+copyright_license: GPL-3.0
 github_repository_name: private-assistant-comms-satellite-py
 github_username: stkr22
 project_description: The satellite is an open source library to work with the private
@@ -14,4 +14,5 @@ project_name: Private Assistant Comms Satellite
 publish_to_pypi: true
 python_package_distribution_name: private-assistant-comms-satellite
 python_package_import_name: private_assistant_comms_satellite
+python_package_version: 1.1.0
 use_containers: false
