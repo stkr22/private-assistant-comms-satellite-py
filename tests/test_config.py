@@ -22,43 +22,19 @@ class TestConfig:
         assert config.samplerate == 16000  # noqa: PLR2004
         assert config.chunk_size == 512  # noqa: PLR2004
         assert config.vad_threshold == 0.6  # noqa: PLR2004
-        assert config.mqtt_server_host == "localhost"
-        assert config.mqtt_server_port == 1883  # noqa: PLR2004
+        assert config.ground_station_url == "ws://localhost:8000/satellite"
 
     def test_config_with_custom_values(self):
         """Test Config with custom values."""
         config = Config(
             wakework_detection_threshold=0.8,
             samplerate=22050,
-            mqtt_server_host="custom.mqtt.server",
-            mqtt_server_port=8883,
+            ground_station_url="wss://custom.ground.station/satellite",
         )
 
         assert config.wakework_detection_threshold == 0.8  # noqa: PLR2004
         assert config.samplerate == 22050  # noqa: PLR2004
-        assert config.mqtt_server_host == "custom.mqtt.server"
-        assert config.mqtt_server_port == 8883  # noqa: PLR2004
-
-    def test_config_topic_properties(self):
-        """Test computed topic properties."""
-        config = Config(client_id="test_client")
-
-        expected_base = "assistant/comms_bridge/all/test_client"
-        assert config.base_topic == expected_base
-        assert config.input_topic == f"{expected_base}/input"
-        assert config.output_topic == f"{expected_base}/output"
-
-    def test_config_topic_overwrites(self):
-        """Test topic overwrites work correctly."""
-        config = Config(
-            base_topic_overwrite="custom/base",
-            input_topic_overwrite="custom/input",
-            output_topic_overwrite="custom/output",
-        )
-
-        assert config.base_topic == "custom/base"
-        assert config.input_topic == "custom/input"
-        assert config.output_topic == "custom/output"
+        assert config.ground_station_url == "wss://custom.ground.station/satellite"
 
 
 class TestLoadConfig:
@@ -69,8 +45,7 @@ class TestLoadConfig:
         config_data = """
 wakework_detection_threshold: 0.7
 samplerate: 22050
-mqtt_server_host: "test.server"
-mqtt_server_port: 8883
+ground_station_url: "wss://test.ground.station/satellite"
 """
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
@@ -82,8 +57,7 @@ mqtt_server_port: 8883
 
             assert config.wakework_detection_threshold == 0.7  # noqa: PLR2004
             assert config.samplerate == 22050  # noqa: PLR2004
-            assert config.mqtt_server_host == "test.server"
-            assert config.mqtt_server_port == 8883  # noqa: PLR2004
+            assert config.ground_station_url == "wss://test.ground.station/satellite"
 
             # Clean up
             config_path.unlink()
