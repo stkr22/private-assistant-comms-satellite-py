@@ -101,10 +101,14 @@ def start_satellite(config_path: pathlib.Path) -> None:
     # Preload sounds with fallback to generated sounds
     start_listening_sound = load_sound_with_fallback(config_obj.start_listening_path, "start", config_obj.samplerate)
     stop_listening_sound = load_sound_with_fallback(config_obj.stop_listening_path, "stop", config_obj.samplerate)
+    # Generate disconnection warning sound
+    disconnection_sound = sound_generation.generate_disconnection_warning_sound(config_obj.samplerate)
+
     satellite_handler = satellite.Satellite(
         config=config_obj,
         start_listening_sound=start_listening_sound,
         stop_listening_sound=stop_listening_sound,
+        disconnection_sound=disconnection_sound,
         wakeword_model=wakeword_model,
         logger=logger,
     )

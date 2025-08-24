@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import websockets
 from private_assistant_commons import skill_logger
@@ -34,6 +34,11 @@ class GroundStationClient:
 
     async def connect(self) -> None:
         """Connect to the ground station WebSocket endpoint."""
+        # AIDEV-NOTE: Don't attempt connection if already connected
+        if self._connected and self.websocket:
+            logger.debug("Already connected to ground station")
+            return
+
         try:
             logger.info("Connecting to ground station: %s", self.config.ground_station_url)
             self.websocket = await websockets.connect(self.config.ground_station_url)
@@ -58,6 +63,7 @@ class GroundStationClient:
         except Exception as e:
             logger.error("Failed to connect to ground station: %s", e)
             self._connected = False
+            self.websocket = None
             raise
 
     async def disconnect(self) -> None:
@@ -73,53 +79,51 @@ class GroundStationClient:
         """Check if connected to ground station."""
         return self._connected and self.websocket is not None
 
-    async def send_start_command(self) -> None:
-        """Send START_COMMAND signal to indicate wake word detected."""
+    async def _send_command(self, command: Literal["START_COMMAND", "END_COMMAND", "CANCEL_COMMAND"] | bytes) -> None:
+        """Generic method to send commands or audio data to ground station.
+
+        Args:
+            command: Either a command string or audio bytes to send
+
+        Handles disconnection detection and state cleanup on errors.
+        """
         if not self.is_connected:
-            logger.error("Not connected to ground station, cannot send start command")
+            command_type = "audio" if isinstance(command, bytes) else command
+            logger.error("Not connected to ground station, cannot send %s", command_type)
             return
 
         try:
-            await self.websocket.send("START_COMMAND")  # type: ignore
-            logger.debug("Sent START_COMMAND to ground station")
+            await self.websocket.send(command)  # type: ignore
+            if isinstance(command, bytes):
+                logger.debug("Sent audio chunk (%d bytes) to ground station", len(command))
+            else:
+                logger.debug("Sent %s to ground station", command)
+        except websockets.exceptions.ConnectionClosed:
+            command_type = "audio chunk" if isinstance(command, bytes) else command
+            logger.warning("Connection closed while sending %s", command_type)
+            self._connected = False
+            self.websocket = None
         except Exception as e:
-            logger.error("Failed to send start command: %s", e)
+            command_type = "audio chunk" if isinstance(command, bytes) else command
+            logger.error("Failed to send %s: %s", command_type, e)
+            self._connected = False
+            self.websocket = None
+
+    async def send_start_command(self) -> None:
+        """Send START_COMMAND signal to indicate wake word detected."""
+        await self._send_command("START_COMMAND")
 
     async def send_audio_chunk(self, audio_data: bytes) -> None:
         """Send audio data chunk to ground station."""
-        if not self.is_connected:
-            logger.error("Not connected to ground station, cannot send audio")
-            return
-
-        try:
-            await self.websocket.send(audio_data)  # type: ignore
-            logger.debug("Sent audio chunk (%d bytes) to ground station", len(audio_data))
-        except Exception as e:
-            logger.error("Failed to send audio chunk: %s", e)
+        await self._send_command(audio_data)
 
     async def send_end_command(self) -> None:
         """Send END_COMMAND signal to indicate end of audio input."""
-        if not self.is_connected:
-            logger.error("Not connected to ground station, cannot send end command")
-            return
-
-        try:
-            await self.websocket.send("END_COMMAND")  # type: ignore
-            logger.debug("Sent END_COMMAND to ground station")
-        except Exception as e:
-            logger.error("Failed to send end command: %s", e)
+        await self._send_command("END_COMMAND")
 
     async def send_cancel_command(self) -> None:
         """Send CANCEL_COMMAND signal to cancel current processing."""
-        if not self.is_connected:
-            logger.error("Not connected to ground station, cannot send cancel command")
-            return
-
-        try:
-            await self.websocket.send("CANCEL_COMMAND")  # type: ignore
-            logger.debug("Sent CANCEL_COMMAND to ground station")
-        except Exception as e:
-            logger.error("Failed to send cancel command: %s", e)
+        await self._send_command("CANCEL_COMMAND")
 
     async def get_response(self, timeout: float = 30.0) -> dict[str, Any] | None:
         """Get next response from ground station with timeout."""
@@ -173,6 +177,8 @@ class GroundStationClient:
         except websockets.exceptions.ConnectionClosed:
             logger.info("Ground station connection closed")
             self._connected = False
+            self.websocket = None
         except Exception as e:
             logger.error("Error in message handler: %s", e)
             self._connected = False
+            self.websocket = None
