@@ -1,4 +1,3 @@
-import asyncio
 import os
 import pathlib
 import wave
@@ -6,12 +5,11 @@ import wave
 import numpy as np
 import openwakeword
 import openwakeword.utils
-from private_assistant_commons import messages, skill_logger
+from private_assistant_commons import skill_logger
 
 from private_assistant_comms_satellite import satellite
 from private_assistant_comms_satellite.utils import (
     config,
-    mqtt_utils,
     sound_generation,
 )
 
@@ -87,7 +85,7 @@ def start_satellite(config_path: pathlib.Path) -> None:
     Args:
         config_path: Path to the YAML configuration file
     """
-    # AIDEV-NOTE: Refactored from main() to allow CLI integration
+    # AIDEV-NOTE: Refactored from main() to allow CLI integration with ground station architecture
     # Ensure base models are available before loading config and creating wakeword model
     ensure_openwakeword_models()
 
@@ -98,21 +96,6 @@ def start_satellite(config_path: pathlib.Path) -> None:
         vad_threshold=config_obj.vad_threshold,
         inference_framework=config_obj.openwakeword_inference_framework,
     )
-    topic_to_queue: dict[str, asyncio.Queue[messages.Response]] = {}
-    output_queue: asyncio.Queue[messages.Response] = asyncio.Queue()
-    output_topic = config_obj.output_topic
-    topic_to_queue[output_topic] = output_queue
-    topic_to_queue[config_obj.broadcast_topic] = output_queue
-
-    mqtt_client = mqtt_utils.AsyncMQTTClient(
-        hostname=config_obj.mqtt_server_host,
-        port=config_obj.mqtt_server_port,
-        client_id=config_obj.client_id,
-        topic_to_queue=topic_to_queue,
-        use_websockets=config_obj.mqtt_use_websockets,
-        websocket_path=config_obj.mqtt_websocket_path,
-        use_ssl=config_obj.mqtt_use_ssl,
-    )
 
     logger = skill_logger.SkillLogger.get_logger("Private Assistant Comms Satellite")
     # Preload sounds with fallback to generated sounds
@@ -120,11 +103,9 @@ def start_satellite(config_path: pathlib.Path) -> None:
     stop_listening_sound = load_sound_with_fallback(config_obj.stop_listening_path, "stop", config_obj.samplerate)
     satellite_handler = satellite.Satellite(
         config=config_obj,
-        output_queue=output_queue,
         start_listening_sound=start_listening_sound,
         stop_listening_sound=stop_listening_sound,
         wakeword_model=wakeword_model,
-        mqtt_client=mqtt_client,
         logger=logger,
     )
 
