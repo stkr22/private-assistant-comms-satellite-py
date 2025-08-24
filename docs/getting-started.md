@@ -9,24 +9,18 @@ This guide walks you through setting up the Private Assistant Communications Sat
 - Internet connection
 - MQTT broker and STT/TTS API endpoints
 
-## Step 1: Install Python 3.12
+## Step 1: Install system dependencies
 
 ```bash
 # Update system
 sudo apt update && sudo apt upgrade -y
-
-# Install Python 3.12 and dependencies
-sudo apt install -y software-properties-common
-sudo add-apt-repository ppa:deadsnakes/ppa
-sudo apt update
-sudo apt install -y python3.12 python3.12-dev python3.12-venv git curl
 
 # Install build tools and audio system dependencies
 sudo apt install -y gcc build-essential libasound2-dev libportaudio2 libportaudiocpp0 portaudio19-dev libsndfile1-dev
 
 # Install UV package manager
 curl -LsSf https://astral.sh/uv/install.sh | sh
-source $HOME/.cargo/env
+source $HOME/.local/bin/env
 ```
 
 ## Step 2: Set Up Audio
@@ -85,20 +79,11 @@ nano local_config.yaml
 
 ```yaml
 # Device identification
-client_id: "my_satellite"
 room: "office"
 
 # Audio devices (from Step 2)
 input_device_index: 1    # Your microphone
 output_device_index: 1   # Your speaker
-
-# MQTT broker
-mqtt_server_host: "your-mqtt-broker.local"
-mqtt_server_port: 1883
-
-# APIs 
-speech_transcription_api: "http://your-stt-server:8000/transcribe"
-speech_synthesis_api: "http://your-tts-server:8080/synthesizeSpeech"
 ```
 
 ## Step 5: Test Run
@@ -163,13 +148,5 @@ sudo systemctl restart comms-satellite.service
 ## Common Issues
 
 **Audio errors**: Verify device indices with the sounddevice command from Step 2.
-
-**MQTT errors**: Test connectivity with `ping your-mqtt-broker.local`.
-
-**API errors**: Test endpoints with curl:
-```bash
-curl -v http://your-stt-server:8000/health
-curl -v http://your-tts-server:8080/health
-```
 
 That's it! Your satellite should now be running and ready to process voice commands.
