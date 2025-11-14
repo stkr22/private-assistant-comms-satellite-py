@@ -1,6 +1,6 @@
 {
 	"name": "private-assistant-comms-satellite-dev-environment",
-	"image": "ghcr.io/stkr22/devcontainer-python-container:1.0.0@sha256:8d97a83cba32b1474bb692963b9495f62be7c94a4206d92a04fe7373ac6e0033",
+	"image": "ghcr.io/stkr22/devcontainer-python-container:1.2.3@sha256:a603226b921a1d5ffa7beea34471c0ec830f6c5ab0878a0d198be862bb06f523",
 	"runArgs": [
 		"--cap-add=NET_RAW" // Needed for Claude Code IDE integration
 	],
