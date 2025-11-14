@@ -41,7 +41,12 @@ class GroundStationClient:
 
         try:
             logger.info("Connecting to ground station: %s", self.config.ground_station_url)
-            self.websocket = await websockets.connect(self.config.ground_station_url)
+            # AIDEV-NOTE: Keep-alive ensures connection survives Traefik/proxy idle timeouts
+            self.websocket = await websockets.connect(
+                self.config.ground_station_url,
+                ping_interval=10,  # Send ping every 10 seconds
+                ping_timeout=10,  # Timeout if no pong received within 10 seconds
+            )
             self._connected = True
             logger.info("Connected to ground station successfully")
 
