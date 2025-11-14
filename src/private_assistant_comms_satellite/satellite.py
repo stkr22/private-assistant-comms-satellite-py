@@ -76,7 +76,8 @@ class Satellite:
         self._buffer_position = 0
 
         # AIDEV-NOTE: Audio queues for callback-based streaming
-        self._audio_queue: queue.Queue[np.ndarray] = queue.Queue()
+        # AIDEV-NOTE: Small queue size for real-time processing - prevents delays in wakeword detection
+        self._audio_queue: queue.Queue[np.ndarray] = queue.Queue(maxsize=10)
         self._output_buffer: np.ndarray = np.array([], dtype=np.float32)
         self._output_position = 0
         self._running = False
