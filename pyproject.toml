@@ -24,7 +24,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "pyyaml~=6.0.1",
     "pydantic~=2.9.0",
-    "private-assistant-commons~=3.0.0",
+    "private-assistant-commons~=5.2.2",
     "speexdsp-ns~=0.1.2",
     "numpy~=2.3.0",
     "websockets~=13.1",
