@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v1.3.1...v1.4.0) (2025-11-14)
+
+
+### Features
+
+* :wrench: add websocket keep-alive and limit audio queue for real-time stability [AI] ([50e38d2](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/50e38d23f4b6d879f2c05bce0b234781123979ec))
+
 ## [1.3.1](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v1.3.0...v1.3.1) (2025-08-24)
 
 
