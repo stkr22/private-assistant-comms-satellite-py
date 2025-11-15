@@ -20,10 +20,10 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
-requires-python = ">=3.12,<3.13"
+requires-python = ">=3.14,<3.15"
 dependencies = [
     "pyyaml~=6.0.1",
-    "pydantic~=2.9.0",
+    "pydantic~=2.12.4",
     "private-assistant-commons~=5.2.2",
     "speexdsp-ns~=0.1.2",
     "numpy~=2.3.0",
