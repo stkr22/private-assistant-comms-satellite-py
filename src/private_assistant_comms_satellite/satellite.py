@@ -9,7 +9,6 @@ from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import websockets.exceptions
 
 try:
     import sounddevice as sd
@@ -181,13 +180,7 @@ class Satellite:
         """Process responses from ground station."""
         while self._running:
             try:
-                # Check if ground station is still connected
-                if not self.ground_station.is_connected:
-                    self.logger.warning("Ground station disconnected, will reconnect on next command")
-                    # Don't break - just wait and continue the loop
-                    await asyncio.sleep(1.0)
-                    continue
-
+                # AIDEV-NOTE: Automatic reconnection handles disconnections, just wait for responses
                 # Check for responses from ground station
                 response = await self.ground_station.get_response(timeout=1.0)
                 if response is None:
@@ -250,26 +243,22 @@ class Satellite:
         self._reset_audio_buffer()
 
         try:
-            # AIDEV-NOTE: Ensure we're connected before sending commands
+            # AIDEV-NOTE: Automatic reconnection handles connection state, check if connected
             if not self.ground_station.is_connected:
-                self.logger.info("Ground station not connected, attempting to reconnect...")
-                max_retries = 3
-                for retry in range(max_retries):
-                    try:
-                        await self.ground_station.connect()
-                        self.logger.info("Successfully reconnected to ground station")
-                        break
-                    except Exception as e:
-                        self.logger.warning("Reconnection attempt %d/%d failed: %s", retry + 1, max_retries, e)
-                        if retry < max_retries - 1:
-                            await asyncio.sleep(2.0)
-                        else:
-                            self.logger.error("Failed to reconnect to ground station after %d attempts", max_retries)
-                            # Play disconnection warning sound to alert user
-                            self._queue_sound(self._disconnection_sound_array)
-                            # Return to listening state
-                            self._set_state(SatelliteState.LISTENING)
-                            return
+                self.logger.info("Ground station not connected, waiting for automatic reconnection...")
+                # Wait briefly for automatic reconnection
+                max_wait = 5.0  # Wait up to 5 seconds
+                wait_start = time.time()
+                while not self.ground_station.is_connected and (time.time() - wait_start) < max_wait:
+                    await asyncio.sleep(0.5)
+
+                if not self.ground_station.is_connected:
+                    self.logger.warning("Ground station still not connected after waiting")
+                    # Play disconnection warning sound to alert user
+                    self._queue_sound(self._disconnection_sound_array)
+                    # Return to listening state
+                    self._set_state(SatelliteState.LISTENING)
+                    return
 
             # Send START_COMMAND to ground station
             await self.ground_station.send_start_command()
@@ -426,7 +415,7 @@ class Satellite:
             self.logger.info("Received interrupt signal")
             raise
 
-    def start(self) -> None:  # noqa: PLR0915
+    def start(self) -> None:
         """Start the satellite with ground station integration."""
         self.logger.info("Starting satellite with ground station integration...")
 
@@ -480,31 +469,23 @@ class Satellite:
             self._input_stream.start()
             self._output_stream.start()
 
-            # Connect to ground station and run main processing loop
+            # AIDEV-NOTE: Run ground station client with automatic reconnection and main processing loop
             async def run_with_ground_station():
-                reconnect_delay = 5
-                while self._running:
-                    try:
-                        # AIDEV-NOTE: Attempt connection only if not already connected
-                        if not self.ground_station.is_connected:
-                            self.logger.info("Attempting to connect to ground station...")
-                            await self.ground_station.connect()
-                            reconnect_delay = 5  # Reset delay on successful connection
+                # Start automatic reconnection in background
+                reconnection_task = asyncio.create_task(self.ground_station.start_with_reconnection())
 
-                        await self._main_loop()
-                    except websockets.exceptions.ConnectionClosedError:
-                        self.logger.warning(
-                            "Ground station connection lost, attempting reconnect in %d seconds...", reconnect_delay
-                        )
-                        await asyncio.sleep(reconnect_delay)
-                        reconnect_delay = min(reconnect_delay * 2, 60)  # Exponential backoff up to 60 seconds
-                    except Exception as e:
-                        self.logger.error("Ground station error: %s, retrying in %d seconds...", e, reconnect_delay)
-                        await asyncio.sleep(reconnect_delay)
-                        reconnect_delay = min(reconnect_delay * 2, 60)  # Exponential backoff up to 60 seconds
-                    finally:
-                        if self.ground_station.is_connected:
-                            await self.ground_station.disconnect()
+                try:
+                    # Run main loop until stopped or error
+                    await self._main_loop()
+                except Exception as e:
+                    self.logger.error("Main loop error: %s", e)
+                    raise
+                finally:
+                    # Stop automatic reconnection
+                    await self.ground_station.stop()
+                    # Wait for reconnection task to complete
+                    with suppress(asyncio.CancelledError):
+                        await reconnection_task
 
             asyncio.run(run_with_ground_station())
 
