@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v1.4.0...v1.5.0) (2025-11-15)
+
+
+### Features
+
+* :zap: implement automatic WebSocket reconnection with exponential backoff [AI] ([3a47786](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/3a47786036fb1d5f0257abf5918317c4570674ec))
+
 ## [1.4.0](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v1.3.1...v1.4.0) (2025-11-14)
 
 
