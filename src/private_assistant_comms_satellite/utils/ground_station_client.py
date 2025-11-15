@@ -1,5 +1,6 @@
 import asyncio
 import json
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any, Literal
 
 import websockets
@@ -31,6 +32,9 @@ class GroundStationClient:
         self.websocket: websockets.WebSocketClientProtocol | None = None
         self._connected = False
         self._response_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+        self._reconnection_task: asyncio.Task[None] | None = None
+        self._should_reconnect = False
+        self._running = False
 
     async def connect(self) -> None:
         """Connect to the ground station WebSocket endpoint."""
@@ -70,6 +74,51 @@ class GroundStationClient:
             self._connected = False
             self.websocket = None
             raise
+
+    async def start_with_reconnection(self) -> None:
+        """Start the client with automatic reconnection on disconnection.
+
+        This method maintains a persistent connection to the ground station,
+        automatically reconnecting with exponential backoff when the connection
+        is lost. It runs until stop() is called.
+        """
+        self._running = True
+        self._should_reconnect = True
+        reconnect_delay = 1.0  # Start with 1 second
+        max_delay = 60.0  # Cap at 60 seconds
+
+        while self._running and self._should_reconnect:
+            try:
+                if not self.is_connected:
+                    logger.info("Attempting to connect to ground station...")
+                    await self.connect()
+                    reconnect_delay = 1.0  # Reset delay on successful connection
+
+                # Wait for connection to close or stop signal
+                while self._running and self.is_connected:
+                    await asyncio.sleep(0.5)
+
+                # Connection lost
+                if self._running and self._should_reconnect:
+                    logger.info("Connection to ground station lost, reconnecting in %.1f seconds...", reconnect_delay)
+                    await asyncio.sleep(reconnect_delay)
+                    reconnect_delay = min(reconnect_delay * 2, max_delay)
+
+            except Exception as e:
+                if self._running and self._should_reconnect:
+                    logger.warning("Connection attempt failed: %s, retrying in %.1f seconds...", e, reconnect_delay)
+                    await asyncio.sleep(reconnect_delay)
+                    reconnect_delay = min(reconnect_delay * 2, max_delay)
+
+    async def stop(self) -> None:
+        """Stop the client and automatic reconnection."""
+        self._running = False
+        self._should_reconnect = False
+        if self._reconnection_task and not self._reconnection_task.done():
+            self._reconnection_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self._reconnection_task
+        await self.disconnect()
 
     async def disconnect(self) -> None:
         """Disconnect from the ground station."""
@@ -180,7 +229,8 @@ class GroundStationClient:
                     logger.error("Error processing message: %s", e)
 
         except websockets.exceptions.ConnectionClosed:
-            logger.info("Ground station connection closed")
+            # AIDEV-NOTE: Connection closed is expected during network issues or proxy timeouts
+            logger.debug("Ground station connection closed")
             self._connected = False
             self.websocket = None
         except Exception as e:
