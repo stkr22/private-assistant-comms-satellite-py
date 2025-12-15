@@ -12,6 +12,15 @@
   },
   "packageRules": [
     {
+      "description": "Automerge patch updates for stable Python dependencies",
+      "matchManagers": [
+        "pep621",
+        "uv",
+        "pip_requirements",
+        "pip-compile",
+        "pipenv",
+        "poetry"
+      ],
       "matchUpdateTypes": [
         "patch"
       ],
@@ -21,6 +30,15 @@
       "groupSlug": "patches"
     },
     {
+      "description": "Group minor updates for Python dependencies only",
+      "matchManagers": [
+        "pep621",
+        "uv",
+        "pip_requirements",
+        "pip-compile",
+        "pipenv",
+        "poetry"
+      ],
       "matchUpdateTypes": [
         "minor"
       ],
@@ -29,8 +47,10 @@
       "groupSlug": "minors"
     },
     {
+      "description": "Automerge dev dependency minor and patch updates",
       "matchDepTypes": [
-        "dev"
+        "dev",
+        "devDependencies"
       ],
       "matchUpdateTypes": [
         "minor",
@@ -41,11 +61,53 @@
       "automerge": true
     },
     {
+      "description": "Group GitHub Actions updates",
       "matchManagers": [
         "github-actions"
       ],
       "groupName": "GitHub Actions",
       "groupSlug": "github-actions"
+    },
+    {
+      "description": "Separate PR for Python runtime version updates",
+      "matchDepNames": [
+        "python"
+      ],
+      "matchManagers": [
+        "dockerfile",
+        "docker-compose",
+        "pep621"
+      ],
+      "groupName": "Python runtime",
+      "groupSlug": "python-runtime"
+    },
+    {
+      "description": "Separate PR for devcontainer updates",
+      "matchManagers": [
+        "devcontainer"
+      ],
+      "groupName": "devcontainer",
+      "groupSlug": "devcontainer"
+    },
+    {
+      "description": "Separate PR for Copier template updates",
+      "matchManagers": [
+        "copier"
+      ],
+      "groupName": "Copier template",
+      "groupSlug": "copier"
+    },
+    {
+      "description": "Group other Docker image updates",
+      "matchManagers": [
+        "dockerfile",
+        "docker-compose"
+      ],
+      "groupName": "Docker images",
+      "groupSlug": "docker",
+      "matchDepNames": [
+        "!python"
+      ]
     }
   ]
 }
