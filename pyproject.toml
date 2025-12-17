@@ -1,5 +1,5 @@
 [build-system]
-requires = ["uv_build>=0.9.9,<0.10.0"]
+requires = ["uv_build>=0.9.17,<0.10.0"]
 build-backend = "uv_build"
 
 [project]
@@ -9,7 +9,9 @@ description = "The satellite is an open source library to work with the private 
 authors = [{ name = "stkr22", email = "stkr22@github.com" }]
 readme = "README.md"
 license = "GPL-3.0-only"
-license-files = ["LICENSE"]
+license-files = [
+    "LICENSE",
+]
 
 keywords = []
 classifiers = [
@@ -48,14 +50,14 @@ Changelog = "https://github.com/stkr22/private-assistant-comms-satellite-py/blob
 
 [dependency-groups]
 dev = [
-    "ruff>=0.8.0",
-    "mypy>=1.11.0",
-    "pytest>=8.3.3",
-    "pytest-cov>=6.0.0",
-    "pytest-asyncio>=0.25.0",
+    "ruff~=0.14.1",
+    "mypy~=1.17.0",
+    "pytest~=8.4.1",
+    "pytest-cov~=6.2.1",
+    "pytest-xdist~=3.6.0",
+    "coverage[toml]~=7.6.0",
+    "pytest-asyncio~=0.25.2",
     "types-pyyaml~=6.0.12.20240311",
-    "pytest-xdist~=3.8.0",
-    "coverage[toml]~=7.11.3",
 ]
 
 
@@ -110,10 +112,3 @@ exclude_lines = [
     "def __repr__",
     "if __name__ == .__main__.:",
 ]
-
-[tool.commitizen]
-name = "cz_conventional_commits"
-tag_format = "v$version"
-version_scheme = "pep440"
-version_provider = "scm"
-update_changelog_on_bump = true
