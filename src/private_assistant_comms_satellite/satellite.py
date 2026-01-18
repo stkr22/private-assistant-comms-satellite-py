@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import enum
+import os
 import queue
 import threading
 import time
@@ -25,6 +26,7 @@ if TYPE_CHECKING:
     import openwakeword
 
 from private_assistant_comms_satellite import silero_vad
+from private_assistant_comms_satellite.audio_processing import ParametricEQ, SimpleAGC
 from private_assistant_comms_satellite.utils import (
     config,
     ground_station_client,
@@ -93,6 +95,40 @@ class Satellite:
         self._stop_sound_array = self._to_audio_array(stop_listening_sound)
         self._disconnection_sound_array = self._to_audio_array(disconnection_sound)
 
+        # Initialize parametric EQ (Phase 1)
+        self.voice_eq: ParametricEQ | None = None
+        if config.audio_processing.enable_voice_eq:
+            self.voice_eq = ParametricEQ(
+                sample_rate=config.samplerate,
+                presence_boost_db=config.audio_processing.eq_presence_boost_db,
+                presence_freq_hz=config.audio_processing.eq_presence_freq_hz,
+                presence_q=config.audio_processing.eq_presence_q,
+            )
+            logger.info(
+                "Voice EQ enabled: presence +%sdB @ %sHz",
+                config.audio_processing.eq_presence_boost_db,
+                config.audio_processing.eq_presence_freq_hz,
+            )
+
+        # Initialize AGC (Phase 2 - disabled by default)
+        self.agc: SimpleAGC | None = None
+        if config.audio_processing.enable_agc:
+            self.agc = SimpleAGC(
+                target_rms=config.audio_processing.agc_target_rms,
+                smoothing=config.audio_processing.agc_smoothing,
+            )
+            logger.info("AGC enabled: target RMS %s", config.audio_processing.agc_target_rms)
+
+        # Debug audio recording (set DEBUG_AUDIO=1 environment variable)
+        self.debug_recorder = None
+        self._debug_original_buffer: list[np.ndarray] = []
+        self._debug_filtered_buffer: list[np.ndarray] = []
+        if os.getenv("DEBUG_AUDIO") == "1":
+            from private_assistant_comms_satellite.utils.debug_audio import AudioRecorder  # noqa: PLC0415
+
+            self.debug_recorder = AudioRecorder()
+            logger.info("Audio debug recording enabled")
+
     def _to_audio_array(self, audio_data: bytes | np.ndarray) -> np.ndarray:
         """Convert audio data (bytes or array) to numpy array suitable for sounddevice playback."""
         if isinstance(audio_data, bytes):
@@ -121,8 +157,30 @@ class Satellite:
             self.logger.warning("Audio callback status: %s", status)
 
         try:
-            # Convert float32 back to int16 for OpenWakeWord
-            audio_int16 = (indata[:, 0] * 32768.0).astype(np.int16)
+            # Extract mono audio channel (float32, range -1.0 to 1.0)
+            audio_float32 = indata[:, 0].copy()
+
+            # AIDEV-NOTE: Two-stage audio enhancement pipeline for wake word detection
+            # Stage 1: Parametric EQ (boost presence for clarity)
+            if self.voice_eq is not None:
+                audio_float32 = self.voice_eq.process(audio_float32)
+
+            # Stage 2: AGC (normalize volume)
+            if self.agc is not None:
+                audio_float32 = self.agc.process(audio_float32)
+
+            # Debug: accumulate audio during recording for comparison
+            if (
+                self.debug_recorder
+                and self._state == SatelliteState.RECORDING
+                and (self.voice_eq is not None or self.agc is not None)
+            ):
+                # Save original vs processed
+                self._debug_original_buffer.append(indata[:, 0].copy())
+                self._debug_filtered_buffer.append(audio_float32.copy())
+
+            # Convert float32 to int16 for OpenWakeWord (range -32768 to 32767)
+            audio_int16 = (audio_float32 * 32768.0).astype(np.int16)
 
             # AIDEV-NOTE: Put audio data in queue for processing thread
             self._audio_queue.put_nowait(audio_int16)
@@ -221,6 +279,31 @@ class Satellite:
         """Reset the audio buffer for new recording."""
         self._buffer_position = 0
 
+        # Reset all audio processors
+        if self.voice_eq is not None:
+            self.voice_eq.reset()
+        if self.agc is not None:
+            self.agc.reset()
+
+        # Clear debug buffers for new recording
+        self._debug_original_buffer.clear()
+        self._debug_filtered_buffer.clear()
+
+    def _save_debug_audio(self) -> None:
+        """Save accumulated debug audio for comparison analysis."""
+        if not self.debug_recorder or not self._debug_original_buffer or not self._debug_filtered_buffer:
+            return
+
+        # Concatenate all chunks into complete recordings
+        original_audio = np.concatenate(self._debug_original_buffer)
+        filtered_audio = np.concatenate(self._debug_filtered_buffer)
+
+        # Save comparison
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        self.debug_recorder.save_comparison(original_audio, filtered_audio, self._samplerate, f"recording_{timestamp}")
+        duration_sec = len(original_audio) / self._samplerate
+        self.logger.info("Saved debug audio comparison: %d samples (%.2fs)", len(original_audio), duration_sec)
+
     def _append_to_audio_buffer(self, audio_chunk: np.ndarray) -> bool:
         """Append audio chunk to buffer. Returns False if buffer is full."""
         chunk_size = len(audio_chunk)
@@ -256,6 +339,8 @@ class Satellite:
                     self.logger.warning("Ground station still not connected after waiting")
                     # Play disconnection warning sound to alert user
                     self._queue_sound(self._disconnection_sound_array)
+                    # Save any debug audio captured before disconnection
+                    self._save_debug_audio()
                     # Return to listening state
                     self._set_state(SatelliteState.LISTENING)
                     return
@@ -327,6 +412,9 @@ class Satellite:
                             self.logger.debug("Stopping listening, playing stop sound...")
                         self._queue_sound(self._stop_sound_array)
 
+                        # Save debug audio comparison if enabled
+                        self._save_debug_audio()
+
                         # Send END_COMMAND to ground station
                         await self.ground_station.send_end_command()
 
@@ -339,6 +427,8 @@ class Satellite:
 
         except Exception as e:
             self.logger.error("Error in recording: %s", e)
+            # Save debug audio if any was captured before error
+            self._save_debug_audio()
             # Send cancel command in case of error
             with suppress(Exception):
                 await self.ground_station.send_cancel_command()
