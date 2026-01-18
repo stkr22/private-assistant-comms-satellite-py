@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.6.0](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v1.5.0...v1.6.0) (2026-01-18)
+
+
+### Features
+
+* :sparkles: add optimized audio processing pipeline ([6d0c14a](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/6d0c14a5c34efb0e8913c56d3d4d92a080f85994))
+
+
+### Bug Fixes
+
+* update pysilero-vad version and refactor method calls in silero_vad ([46e877f](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/46e877f717f380efad6ef56141f43e886e2f5ce4))
+* update websockets dependency to version 16.0 and adjust type hint in GroundStationClient ([748b01e](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/748b01ead29f11858a5431b26bb2bc89704cd2fd))
+
 ## [1.5.0](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v1.4.0...v1.5.0) (2025-11-15)
 
 
