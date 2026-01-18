@@ -13,7 +13,7 @@ class SileroVad:
         self.trigger_level = trigger_level
         self._activation = 0
 
-        # AIDEV-NOTE: Fixed chunk size for new process_array method (512 float samples)
+        # AIDEV-NOTE: Fixed chunk size for process_samples method (512 float samples)
         self._chunk_samples = 512
 
     def __call__(self, audio_array: np.ndarray | None) -> bool:
@@ -50,9 +50,9 @@ class SileroVad:
 
         # AIDEV-NOTE: Optimize for single chunk (most common case)
         if num_chunks == 1:
-            # Use audio directly - process_array accepts [-1, 1] range
+            # Use audio directly - process_samples accepts [-1, 1] range
             chunk = audio_array[: self._chunk_samples]
-            prob = self.detector.process_array(chunk)
+            prob = self.detector.process_samples(chunk.tolist())
             return self._update_activation(prob)
 
         # AIDEV-NOTE: Process multiple chunks efficiently
@@ -62,9 +62,9 @@ class SileroVad:
             start_idx = i * self._chunk_samples
             end_idx = start_idx + self._chunk_samples
 
-            # Use audio directly - process_array accepts [-1, 1] range
+            # Use audio directly - process_samples accepts [-1, 1] range
             chunk = audio_array[start_idx:end_idx]
-            prob = self.detector.process_array(chunk)
+            prob = self.detector.process_samples(chunk.tolist())
             max_prob = max(max_prob, prob)
 
             # Early termination if we already found high probability
