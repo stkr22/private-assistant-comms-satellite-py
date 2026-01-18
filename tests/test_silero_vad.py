@@ -56,7 +56,7 @@ class TestSileroVad:
     def test_call_speech_detection_below_threshold(self, mock_detector_class):
         """Test speech detection below threshold."""
         mock_detector = MagicMock()
-        mock_detector.process_array.return_value = 0.3  # Below threshold of 0.5
+        mock_detector.process_samples.return_value = 0.3  # Below threshold of 0.5
         mock_detector_class.return_value = mock_detector
 
         vad = SileroVad(threshold=0.5, trigger_level=2)
@@ -72,7 +72,7 @@ class TestSileroVad:
     def test_call_speech_detection_above_threshold_not_triggered(self, mock_detector_class):
         """Test speech detection above threshold but not enough to trigger."""
         mock_detector = MagicMock()
-        mock_detector.process_array.return_value = 0.7  # Above threshold of 0.5
+        mock_detector.process_samples.return_value = 0.7  # Above threshold of 0.5
         mock_detector_class.return_value = mock_detector
 
         vad = SileroVad(threshold=0.5, trigger_level=3)
@@ -87,7 +87,7 @@ class TestSileroVad:
     def test_call_speech_detection_triggers(self, mock_detector_class):
         """Test speech detection that triggers activation."""
         mock_detector = MagicMock()
-        mock_detector.process_array.return_value = 0.8  # Above threshold
+        mock_detector.process_samples.return_value = 0.8  # Above threshold
         mock_detector_class.return_value = mock_detector
 
         vad = SileroVad(threshold=0.5, trigger_level=2)
@@ -104,7 +104,7 @@ class TestSileroVad:
         """Test that multiple chunks use maximum probability."""
         mock_detector = MagicMock()
         # Return different probabilities for different chunks
-        mock_detector.process_array.side_effect = [0.3, 0.8, 0.4]  # Max is 0.8
+        mock_detector.process_samples.side_effect = [0.3, 0.8, 0.4]  # Max is 0.8
         mock_detector_class.return_value = mock_detector
 
         vad = SileroVad(threshold=0.5, trigger_level=1)
@@ -114,4 +114,4 @@ class TestSileroVad:
         result = vad(audio_data)
 
         assert result is True  # Should trigger because max(0.3, 0.8) = 0.8 > 0.5
-        assert mock_detector.process_array.call_count == 2  # noqa: PLR2004 - Should process 2 chunks (early termination)
+        assert mock_detector.process_samples.call_count == 2  # noqa: PLR2004 - Should process 2 chunks (early termination)

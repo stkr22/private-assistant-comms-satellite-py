@@ -3,9 +3,55 @@ import socket
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 logger = logging.getLogger(__name__)
+
+
+class AudioProcessingConfig(BaseModel):
+    """Audio enhancement configuration."""
+
+    # Parametric EQ for voice enhancement
+    enable_voice_eq: bool = Field(
+        default=True,
+        description="Enable parametric EQ for voice enhancement",
+    )
+    eq_presence_boost_db: float = Field(
+        default=3.0,
+        ge=0.0,
+        le=6.0,
+        description="Presence boost at 3-4 kHz in dB (improves clarity)",
+    )
+    eq_presence_freq_hz: float = Field(
+        default=3500.0,
+        ge=2000.0,
+        le=5000.0,
+        description="Center frequency for presence boost",
+    )
+    eq_presence_q: float = Field(
+        default=2.5,
+        ge=0.5,
+        le=5.0,
+        description="Q factor for presence boost (higher = narrower)",
+    )
+
+    # Automatic Gain Control
+    enable_agc: bool = Field(
+        default=True,
+        description="Enable automatic gain control",
+    )
+    agc_target_rms: float = Field(
+        default=0.16,
+        ge=0.01,
+        le=0.5,
+        description="Target RMS level for AGC normalization",
+    )
+    agc_smoothing: float = Field(
+        default=0.7,
+        ge=0.0,
+        le=0.99,
+        description="Gain smoothing factor (higher = smoother, slower)",
+    )
 
 
 class Config(BaseModel):
@@ -30,6 +76,10 @@ class Config(BaseModel):
     """Number of chunks to cross threshold before activation."""
     start_listening_path: str | None = None
     stop_listening_path: str | None = None
+    audio_processing: AudioProcessingConfig = Field(
+        default_factory=AudioProcessingConfig,
+        description="Audio signal processing configuration",
+    )
 
 
 def load_config(config_path: Path) -> Config:
