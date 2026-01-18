@@ -8,6 +8,8 @@ from private_assistant_commons import skill_logger
 from pydantic import BaseModel
 
 if TYPE_CHECKING:
+    from websockets.asyncio.client import ClientConnection
+
     from private_assistant_comms_satellite.utils import config
 
 logger = skill_logger.SkillLogger.get_logger("Private Assistant Comms Satellite")
@@ -29,7 +31,7 @@ class GroundStationClient:
 
     def __init__(self, config_obj: "config.Config"):
         self.config = config_obj
-        self.websocket: websockets.WebSocketClientProtocol | None = None
+        self.websocket: ClientConnection | None = None
         self._connected = False
         self._response_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
         self._reconnection_task: asyncio.Task[None] | None = None
