@@ -1,9 +1,10 @@
 {
 	"name": "private-assistant-comms-satellite-dev-environment",
-	"image": "ghcr.io/stkr22/devcontainer-python-container:1.3.0@sha256:03811019a87d4c39e8f26871c3a7c5e99c14124242821c717abdd9a279528687",
-	"runArgs": [
-		"--cap-add=NET_RAW" // Needed for Claude Code IDE integration
-	],
+	"image": "ghcr.io/stkr22/devcontainer-python-container:1.4.0@sha256:8830e371adfceaf5c17f8fa261aafea899fbcf940a0b72b76b005500a5279b99",
+    "features": {
+        "ghcr.io/stkr22/devcontainer-features/claude-code:2.0.3": {},
+        "ghcr.io/stkr22/devcontainer-features/uv:1.0.0": {}
+    },
 	"customizations": {
 		"vscode": {
 			"extensions": [
@@ -17,22 +18,28 @@
 				"github.vscode-github-actions",
 				"oderwat.indent-rainbow",
 				"mhutchie.git-graph",
-				"vivaxy.vscode-conventional-commits",
-				"Anthropic.claude-code"
-			]
+				"vivaxy.vscode-conventional-commits"
+			],
+			"settings": {
+				"files.trimFinalNewlines": true,
+				"files.trimTrailingWhitespace": true,
+				"files.insertFinalNewline": true,
+				"[python]": {
+					"editor.formatOnSave": true,
+					"editor.codeActionsOnSave": {
+						"source.fixAll": "explicit",
+						"source.organizeImports": "explicit"
+					},
+					"editor.defaultFormatter": "charliermarsh.ruff"
+				},
+				"python.defaultInterpreterPath": "/workspaces/.venv/bin/python",
+				"python.testing.unittestEnabled": false,
+				"python.testing.pytestEnabled": true,
+				"cSpell.files": [
+					"src"
+				]
+			}
 		}
 	},
-	"mounts": [
-		{
-			"source": "claude-code-bashhistory-${devcontainerId}",
-			"target": "/commandhistory",
-			"type": "volume"
-		},
-		{
-			"source": "claude-code-config-${devcontainerId}",
-			"target": "/home/vscode/.claude",
-			"type": "volume"
-		}
-	],
-	"postCreateCommand": "uv sync --group dev"
+	"postCreateCommand": "uv sync --group dev && uv tool run pre-commit install"
 }

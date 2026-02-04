@@ -1,57 +1,30 @@
 # AGENTS.md
 
-*Last updated 2025-07-15*
-
----
-
-## Project Structure and Organization
-
-### Primary Directives
+## Primary Directives
 
 When uncertain about implementation details or requirements, ask for clarification before proceeding.
 Break down the task at hand and chalk out a rough plan for carrying it out, referencing project conventions and best practices.
 
-### Directory Layout
+## Core Commands
 
-```graph
-project/
-├── src/              # Primary workspace for all code changes
-├── tests/            # Read-only - owned by humans
-├── docs/             # Update when code changes affect usage
-├── .github/          # Requires explicit permission
-└── pyproject.toml    # Modifiable with approval
-```
-
-## Build & Commands
-
-### Core Commands
-
+Add a dependency
 ```bash
-uv add pydantic~=2.9.0         # Add a dependency
-uv sync --group dev        # Install dependencies
-uv run pytest             # Verify changes work
-uv run ruff check --fix .       # Check code quality
-uv run ruff format .      # Apply formatting
-uv run mypy src/          # Validate types
+uv add pydantic~=2.9.0
+```
+Install dependencies
+```bash
+uv sync --group dev
+```
+Run tests
+```bash
+uv run pytest
+```
+Apply formatting and Check code quality and Validate types. Always run after the end of a task.
+```bash
+uv run ruff check --fix . && uv run ruff format . && uv run mypy .
 ```
 
-### Command Usage
-
-- Run tests after implementing features
-- Apply formatting before committing
-- Use linting feedback to improve code quality. Only use "noqa" after asking the developer.
-
-## Code style and conventions
-
-- **Python**: 3.12+.
-- **Package Manager**: UV with pyproject.toml using dependency groups
-- **Testing**: pytest with coverage. Separate test files matching source file patterns.
-- **Formatting and Linting**: `ruff` enforces 120-char lines, double quotes, sorted imports. Standard `ruff` linter rules.
-- **Type Checking**: mypy in strict mode
-- **Typing**: Strict (Pydantic v2 models preferred);
-- **Naming**: `snake_case` (functions/variables), `PascalCase` (classes), `SCREAMING_SNAKE` (constants).
-
-### Code Documentation
+## Code Documentation
 
 - **Code Documentation**: Google-style docstrings for public functions/classes.
 - **Enduser and Developer Documentation**: Markdown in ./docs folder.
@@ -59,85 +32,26 @@ uv run mypy src/          # Validate types
   - Information about implementation / usage should be in a single place. If needed somewhere else, use references.
   - Focus documentation on the use case. Ask if you want to add information like troubleshooting or performance optimization.
 
-### Anchor comments
-
-```python
-# AIDEV-NOTE: Critical performance path - benchmark before changing
-# AIDEV-TODO: Refactor after v2.0 release
-# AIDEV-QUESTION: Consider caching strategy here?
-```
-
-- Search for existing AIDEV-* comments first
-- Update anchors when modifying related code
-- Keep comments under 120 characters
-- Place anchors above relevant code blocks
-- Ask before removing `AIDEV-NOTE:`
-- Make sure to add relevant anchor comments, whenever a file or piece of code is:
-  - too long, or
-  - too complex, or
-  - very important, or
-  - confusing, or
-  - could have a bug unrelated to the task you are currently working on.
-
-## Architecture and Design Patterns
-
-### Error Handling Architecture
-
-```python
-# exceptions.py - centralized exception definitions
-class ProjectError(Exception):
-    """Base exception for project."""
-
-class ValidationError(ProjectError):
-    """Input validation failures."""
-```
-
-### Resource Management
-
-```python
-# Use context managers
-with open_database() as db:
-    result = db.query(sql)
-
-# Async cleanup pattern
-try:
-    result = await async_operation()
-finally:
-    await cleanup_resources()
-```
-
-## Testing Guidelines
-
-If **outdated** tests block your implementation suggest changing them.
-
-### Testing Boundaries
-
-- Tests define behavioral contracts (human domain)
-- Read test files to understand expected behavior
-- Use test failures to guide implementation
-- Report test gaps discovered during implementation
-
-### Test-Driven Development Support
-
-- Implement code to pass existing tests
-- Suggest test scenarios for new functionality
-
-## Security Considerations
-
-### Secure Coding Practices
+## Secure Coding Practices
 
 - Store credentials in environment variables
-- Validate all external inputs
+- Validate all external inputs with pydantic or pydantic-settings
 - Use parameterized queries for databases
 - Apply principle of least privilege
 - Base examples and documentation on fictional scenarios instead of references from instructions.
 
+## Development Guidelines
+
+- All changes must be tested. If you're not testing your changes, you're not done.
+- If **outdated** tests block your implementation suggest changing them.
+- Get your tests to pass. If you didn't run the tests, your code does not work.
+- Follow existing code style. Check neighboring files for patterns.
+- Avoid writing significant amounts of new code. This is often a sign that we're missing an existing method or mechanism that could help solve the problem. Look for existing utilities first.
+
 ## Git Workflow
 
 - **Granular commits**: One logical change per commit. The LEAST is ONE commit per issue.
-- **Tag AI-generated commits**: e.g., `feat: optimise feed query [AI]`.
 - **Clear commit messages**: Explain the *why*; link to issues/ADRs if architectural. If an issue is fixed reference it as closes #XX. One reference per issue.
 - **Always use conventional commit standard with gitmoji**: e.g. "feat:" "perf: :zap:"
 - **Never commit to main**: Always work with separate branches and Pull Requests.
-- **NO attribution to Claude or any AI tool** - Never include "Generated by Claude" or any co-author information
 - **Keep Commit messages concise** - Keep commit message length below 300 characters

@@ -1,7 +1,7 @@
 # Private Assistant Communications Satellite
 
 [![Copier](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/copier-org/copier/master/img/badge/badge-grayscale-inverted-border-orange.json)](https://github.com/copier-org/copier)
-[![python](https://img.shields.io/badge/Python-3.12-3776AB.svg?style=flat&logo=python&logoColor=white)](https://www.python.org)
+[![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=fff)](#)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/charliermarsh/ruff/main/assets/badge/v0.json)](https://github.com/charliermarsh/ruff)
 [![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
@@ -15,7 +15,7 @@ The Private Assistant Communications Satellite is a latency-optimized edge devic
 ## 🎯 Key Features
 
 - **🔊 Real-time Wake Word Detection** - OpenWakeWord integration with customizable models
-- **🎤 Voice Activity Detection (VAD)** - Silero VAD for accurate speech boundary detection  
+- **🎤 Voice Activity Detection (VAD)** - Silero VAD for accurate speech boundary detection
 - **🗣️ Speech Processing Integration** - Async STT/TTS API communication
 - **📡 MQTT Ecosystem Integration** - Low-latency message passing with the assistant ecosystem
 - **⚡ Edge Device Optimized** - Multi-threaded architecture minimizing audio processing latency
@@ -46,7 +46,7 @@ The satellite uses a **simple state machine architecture** for stability and per
 
 **Key Design Benefits:**
 - **Simplified Threading**: Only MQTT runs in separate thread for network I/O
-- **Predictable Behavior**: Clear state transitions eliminate race conditions  
+- **Predictable Behavior**: Clear state transitions eliminate race conditions
 - **Resource Efficiency**: Callback-based audio I/O with efficient buffering
 - **Stable Operation**: No queue overflows or threading conflicts
 
@@ -61,7 +61,7 @@ The satellite uses a **simple state machine architecture** for stability and per
 - MicroSD card (16GB+ recommended)
 
 **Recommended Hardware:**
-- Raspberry Pi 4 (2GB+ RAM) for optimal performance  
+- Raspberry Pi 4 (2GB+ RAM) for optimal performance
 - Quality USB microphone with noise cancellation
 - Dedicated audio HAT for better audio quality
 
@@ -148,7 +148,7 @@ speech_synthesis_api: "http://your-tts-server:8080/synthesizeSpeech"
 client_id: "living_room_satellite"  # Unique name for this device
 room: "livingroom"
 
-# MQTT broker - REQUIRED  
+# MQTT broker - REQUIRED
 mqtt_server_host: "your-mqtt-broker.local"
 mqtt_server_port: 1883
 
@@ -170,7 +170,7 @@ vad_trigger: 2          # Require 2 chunks before activation
 max_command_input_seconds: 10  # Shorter timeout saves memory
 ```
 
-#### Raspberry Pi 4 Configuration  
+#### Raspberry Pi 4 Configuration
 ```yaml
 # Optimize for lower latency
 chunk_size: 512         # Smaller chunks = lower latency
@@ -191,7 +191,7 @@ python -c "import sounddevice as sd; print(sd.query_devices())"
 arecord -l  # List recording devices
 arecord -D hw:1,0 -f cd test.wav  # Test recording
 
-# Test speaker output  
+# Test speaker output
 aplay -l   # List playback devices
 aplay -D hw:1,0 /usr/share/sounds/alsa/Front_Left.wav  # Test playback
 ```
@@ -275,7 +275,7 @@ POST /transcribe
 Content-Type: multipart/form-data
 Authorization: Bearer <optional-token>
 
-Body: 
+Body:
 - file: audio.raw (raw PCM audio data, 16kHz, 16-bit, mono)
 
 Response:
@@ -312,7 +312,7 @@ Response: audio/wav (PCM audio data)
 
 **Configuration:**
 ```yaml
-speech_synthesis_api: "http://your-tts-server:8080/synthesizeSpeech"  
+speech_synthesis_api: "http://your-tts-server:8080/synthesizeSpeech"
 speech_synthesis_api_token: "optional-bearer-token"
 ```
 
@@ -349,7 +349,7 @@ output_topic_overwrite: "custom/satellite/living_room/speech_output"
 {
   "id": "uuid4-string",
   "text": "recognized speech text",
-  "room": "livingroom", 
+  "room": "livingroom",
   "output_topic": "assistant/comms_bridge/all/living_room_satellite/output"
 }
 ```
@@ -380,7 +380,7 @@ output_topic_overwrite: "custom/satellite/living_room/speech_output"
 chunk_size: 256
 chunk_size_ow: 1280
 
-# Higher latency (lower CPU usage)  
+# Higher latency (lower CPU usage)
 chunk_size: 1024
 chunk_size_ow: 1280
 ```
@@ -417,7 +417,7 @@ chunk_size: 1024               # Larger chunks = fewer allocations
 # Monitor system memory
 watch -n 1 'free -h && ps aux | grep satellite | head -5'
 
-# Monitor satellite process specifically  
+# Monitor satellite process specifically
 top -p $(pgrep -f comms-satellite)
 ```
 
@@ -509,7 +509,7 @@ uv run pre-commit install
 # Type checking
 uv run mypy src/
 
-# Linting  
+# Linting
 uv run ruff check .
 
 # Code formatting
@@ -562,7 +562,7 @@ private-assistant-comms-satellite-py/
 ## 📚 Additional Resources
 
 - **[Architecture Documentation](docs/architecture.md)** - Detailed system design
-- **[API Reference](docs/api.md)** - Complete API documentation  
+- **[API Reference](docs/api.md)** - Complete API documentation
 - **[Performance Guide](docs/performance.md)** - In-depth optimization techniques
 - **[Troubleshooting Guide](docs/troubleshooting.md)** - Extended troubleshooting
 - **[Contributing Guide](CONTRIBUTING.md)** - Detailed contribution guidelines

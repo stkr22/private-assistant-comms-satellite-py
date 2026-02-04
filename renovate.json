@@ -7,58 +7,36 @@
   "schedule": [
     "* 16-19 15 * *"
   ],
-  "lockFileMaintenance": {
-    "enabled": true
-  },
   "packageRules": [
     {
-      "description": "Automerge patch updates for stable Python dependencies",
-      "matchManagers": [
-        "pep621",
-        "uv",
-        "pip_requirements",
-        "pip-compile",
-        "pipenv",
-        "poetry"
+      "description": "Automerge patch and minor updates for stable Python dependencies",
+      "matchCategories": [
+        "python"
       ],
       "matchUpdateTypes": [
-        "patch"
-      ],
-      "matchCurrentVersion": "!/^0/",
-      "automerge": true,
-      "groupName": "patch updates",
-      "groupSlug": "patches"
-    },
-    {
-      "description": "Group minor updates for Python dependencies only",
-      "matchManagers": [
-        "pep621",
-        "uv",
-        "pip_requirements",
-        "pip-compile",
-        "pipenv",
-        "poetry"
-      ],
-      "matchUpdateTypes": [
+        "patch",
         "minor"
       ],
+      "matchDepNames": [
+        "!python"
+      ],
       "matchCurrentVersion": "!/^0/",
-      "groupName": "minor updates",
-      "groupSlug": "minors"
+      "groupName": "patch-minor-updates"
     },
     {
-      "description": "Automerge dev dependency minor and patch updates",
-      "matchDepTypes": [
-        "dev",
-        "devDependencies"
+      "description": "No python runtime update",
+      "matchCategories": [
+        "python"
       ],
       "matchUpdateTypes": [
         "minor",
-        "patch"
+        "major"
       ],
-      "groupName": "dev dependencies",
-      "groupSlug": "dev-deps",
-      "automerge": true
+      "matchDepNames": [
+        "python"
+      ],
+      "enabled": false,
+      "groupName": "python-runtime"
     },
     {
       "description": "Group GitHub Actions updates",
@@ -69,27 +47,6 @@
       "groupSlug": "github-actions"
     },
     {
-      "description": "Separate PR for Python runtime version updates",
-      "matchDepNames": [
-        "python"
-      ],
-      "matchManagers": [
-        "dockerfile",
-        "docker-compose",
-        "pep621"
-      ],
-      "groupName": "Python runtime",
-      "groupSlug": "python-runtime"
-    },
-    {
-      "description": "Separate PR for devcontainer updates",
-      "matchManagers": [
-        "devcontainer"
-      ],
-      "groupName": "devcontainer",
-      "groupSlug": "devcontainer"
-    },
-    {
       "description": "Separate PR for Copier template updates",
       "matchManagers": [
         "copier"
@@ -98,16 +55,23 @@
       "groupSlug": "copier"
     },
     {
-      "description": "Group other Docker image updates",
-      "matchManagers": [
-        "dockerfile",
-        "docker-compose"
+      "description": "Disable minor and major Docker image updates",
+      "matchCategories": [
+        "docker"
       ],
-      "groupName": "Docker images",
-      "groupSlug": "docker",
-      "matchDepNames": [
-        "!python"
-      ]
+      "matchUpdateTypes": [
+        "minor",
+        "major"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Separate PR for devcontainer updates",
+      "matchManagers": [
+        "devcontainer"
+      ],
+      "groupName": "devcontainer",
+      "groupSlug": "devcontainer"
     }
   ]
 }
