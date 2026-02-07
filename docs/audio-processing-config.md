@@ -4,12 +4,12 @@ The satellite uses a two-stage audio enhancement pipeline optimized for wake wor
 1. **Parametric EQ** - Boosts speech clarity (3.5 kHz presence)
 2. **Automatic Gain Control (AGC)** - Normalizes volume levels
 
-**Important**: Filters are applied BEFORE wake word detection. Modifications affect OpenWakeWord's ability to detect patterns.
+**Important**: Filters are applied BEFORE wake word detection. Modifications affect MicroWakeWord's ability to detect patterns.
 
 ## Audio Pipeline Flow
 
 ```
-sounddevice → Parametric EQ → AGC → int16 conversion → OpenWakeWord → VAD → Recording
+sounddevice → Parametric EQ → AGC → int16 → MicroFrontend (spectrogram) → TFLite inference → VAD → Recording
 ```
 
 ## Parametric EQ for Voice Enhancement
@@ -32,7 +32,7 @@ audio_processing:
 **For nasal voice**: Lower presence frequency to 2500-3000 Hz
 **For minimal processing**: Set presence boost to 1-2 dB
 
-**Note**: This EQ only boosts mid-high frequencies (presence) which are critical for wake word detection. Low-frequency boosts interfere with OpenWakeWord's spectral pattern recognition.
+**Note**: This EQ only boosts mid-high frequencies (presence) which are critical for wake word detection. MicroWakeWord's MicroFrontend has built-in PCAN noise suppression at the feature level.
 
 ### Performance Impact
 

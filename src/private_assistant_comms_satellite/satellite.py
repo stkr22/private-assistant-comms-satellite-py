@@ -1,3 +1,5 @@
+"""Core satellite state machine for voice interaction."""
+
 from __future__ import annotations
 
 import asyncio
@@ -23,7 +25,7 @@ except OSError as e:
 if TYPE_CHECKING:
     import logging
 
-    import openwakeword
+    from private_assistant_comms_satellite.micro_wake_word import MicroWakeWord
 
 from private_assistant_comms_satellite import silero_vad
 from private_assistant_comms_satellite.audio_processing import ParametricEQ, SimpleAGC
@@ -51,9 +53,10 @@ class Satellite:
         start_listening_sound: bytes | np.ndarray,
         stop_listening_sound: bytes | np.ndarray,
         disconnection_sound: np.ndarray,
-        wakeword_model: openwakeword.Model,
+        wakeword_model: MicroWakeWord,
         logger: logging.Logger,
-    ):
+    ) -> None:
+        """Initialize the satellite with configuration and audio resources."""
         # Assign configuration
         self.config = config
         # Assign preloaded sound data (bytes or arrays)
@@ -62,7 +65,7 @@ class Satellite:
         self.vad_model = silero_vad.SileroVad(threshold=config.vad_threshold, trigger_level=config.vad_trigger)
         self.logger = logger
         # Assign wakeword model
-        self.wakeword_model: openwakeword.Model = wakeword_model
+        self.wakeword_model: MicroWakeWord = wakeword_model
 
         # AIDEV-NOTE: Ground station client replaces MQTT functionality
         self.ground_station = ground_station_client.GroundStationClient(config)
@@ -85,10 +88,10 @@ class Satellite:
         self._input_stream: sd.InputStream | None = None
         self._output_stream: sd.OutputStream | None = None
 
-        # AIDEV-NOTE: Sounddevice uses float32 internally but we'll work with int16 for OpenWakeWord compatibility
+        # AIDEV-NOTE: Sounddevice uses float32 internally but we'll work with int16 for wake word detection
         self._audio_dtype = np.int16
         self._samplerate = config.samplerate
-        self._chunk_size_ow = config.chunk_size_ow
+        self._chunk_size = config.chunk_size
 
         # AIDEV-NOTE: Convert notification sounds to numpy arrays for sounddevice
         self._start_sound_array = self._to_audio_array(start_listening_sound)
@@ -179,7 +182,7 @@ class Satellite:
                 self._debug_original_buffer.append(indata[:, 0].copy())
                 self._debug_filtered_buffer.append(audio_float32.copy())
 
-            # Convert float32 to int16 for OpenWakeWord (range -32768 to 32767)
+            # Convert float32 to int16 for wake word detection (range -32768 to 32767)
             audio_int16 = (audio_float32 * 32768.0).astype(np.int16)
 
             # AIDEV-NOTE: Put audio data in queue for processing thread
@@ -260,7 +263,7 @@ class Satellite:
                     max_wait_time = estimated_duration + 2.0  # Maximum wait with buffer
                     start_wait = time.time()
 
-                    while self._is_sound_playing() and (time.time() - start_wait) < max_wait_time:
+                    while self._is_sound_playing() and (time.time() - start_wait) < max_wait_time:  # noqa: ASYNC110
                         await asyncio.sleep(0.1)
 
                     self.logger.debug("TTS playback completed")
@@ -332,7 +335,7 @@ class Satellite:
                 # Wait briefly for automatic reconnection
                 max_wait = 5.0  # Wait up to 5 seconds
                 wait_start = time.time()
-                while not self.ground_station.is_connected and (time.time() - wait_start) < max_wait:
+                while not self.ground_station.is_connected and (time.time() - wait_start) < max_wait:  # noqa: ASYNC110
                     await asyncio.sleep(0.5)
 
                 if not self.ground_station.is_connected:
@@ -397,7 +400,7 @@ class Satellite:
                     buffer_full = self._buffer_position > max_frames
                     silence_exceeded = silence_packages >= max_silent_packages
                     max_packages = self.config.max_command_input_seconds * (
-                        self.config.samplerate / self.config.chunk_size_ow
+                        self.config.samplerate / self.config.chunk_size
                     )
                     timeout_exceeded = total_packages >= max_packages
 
@@ -450,22 +453,18 @@ class Satellite:
 
                     # Only process audio for wake word in LISTENING state
                     if current_state == SatelliteState.LISTENING:
-                        # AIDEV-NOTE: Process wakeword detection with OpenWakeWord
-                        prediction = self.wakeword_model.predict(
-                            audio_chunk,
-                            debounce_time=2.0,
-                            threshold={self.config.name_wakeword_model: self.config.wakework_detection_threshold},
-                        )
-                        wakeword_probability = prediction[self.config.name_wakeword_model]
+                        # AIDEV-NOTE: Process wakeword detection with MicroWakeWord
+                        wakeword_probability = self.wakeword_model.predict(audio_chunk)
 
                         self.logger.debug(
-                            "Wakeword probability: %s, Threshold: %s",
+                            "Wakeword probability: %.3f, Threshold: %.3f",
                             wakeword_probability,
                             self.config.wakework_detection_threshold,
                         )
 
                         if wakeword_probability >= self.config.wakework_detection_threshold:
                             self.logger.debug("Wakeword detected, playing start listening sound.")
+                            self.wakeword_model.activate_cooldown()
                             self._queue_sound(self._start_sound_array)
                             await self._record_command()
                     else:
@@ -481,7 +480,7 @@ class Satellite:
                 await asyncio.sleep(0.01)
 
     async def _main_loop(self) -> None:
-        """Main processing loop - handles wake word detection and ground station communication."""
+        """Run the main processing loop for wake word detection and ground station communication."""
         try:
             # Start audio processing task
             audio_task = asyncio.create_task(self._process_audio_queue())
@@ -527,7 +526,7 @@ class Satellite:
                 samplerate=self._samplerate,
                 channels=1,
                 dtype=np.float32,  # Sounddevice native format
-                blocksize=self._chunk_size_ow,  # Fixed chunk size for OpenWakeWord
+                blocksize=self._chunk_size,  # Unified chunk size for wakeword + VAD
                 callback=self._audio_callback,
                 device=input_device,  # Use configured input device
             )
@@ -551,7 +550,7 @@ class Satellite:
 
             self.logger.info("Audio stream configuration:")
             self.logger.info("  Sample rate: %d Hz", self._samplerate)
-            self.logger.info("  Chunk size: %d samples", self._chunk_size_ow)
+            self.logger.info("  Chunk size: %d samples", self._chunk_size)
             self.logger.info("  Input device: %s", self._input_stream.device)
             self.logger.info("  Output device: %s", self._output_stream.device)
 

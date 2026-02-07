@@ -1,13 +1,14 @@
+"""Application entry point for the satellite."""
+
 import os
 import pathlib
 import wave
 
 import numpy as np
-import openwakeword
-import openwakeword.utils
 from private_assistant_commons import skill_logger
 
 from private_assistant_comms_satellite import satellite
+from private_assistant_comms_satellite.micro_wake_word import MicroWakeWord
 from private_assistant_comms_satellite.utils import (
     config,
     sound_generation,
@@ -35,6 +36,7 @@ def load_sound_with_fallback(
 
     Returns:
         Audio bytes (from file) or float32 numpy array (generated) suitable for sounddevice
+
     """
     logger = skill_logger.SkillLogger.get_logger("Private Assistant Comms Satellite")
 
@@ -60,41 +62,27 @@ def load_sound_with_fallback(
         raise FileNotFoundError(f"Sound file not found: {file_path}")
 
 
-def ensure_openwakeword_models() -> None:
-    """Ensure OpenWakeWord models are downloaded for first-time setup.
-
-    Downloads spectrograms and silero VAD model if not already present.
-    This prevents the need for manual model download before first use.
-    """
-    logger = skill_logger.SkillLogger.get_logger("Private Assistant Comms Satellite")
-
-    logger.info("Ensuring OpenWakeWord base models are available...")
-    try:
-        # Download base models (spectrograms and silero VAD) - only downloads if missing
-        openwakeword.utils.download_models(model_names=["none"])
-        logger.debug("OpenWakeWord base models verified successfully")
-    except Exception as e:
-        logger.error("Failed to download OpenWakeWord models: %s", e)
-        logger.error("Please download manually")
-        raise
-
-
 def start_satellite(config_path: pathlib.Path) -> None:
     """Start the satellite application with the given configuration.
 
     Args:
         config_path: Path to the YAML configuration file
-    """
-    # AIDEV-NOTE: Refactored from main() to allow CLI integration with ground station architecture
-    # Ensure base models are available before loading config and creating wakeword model
-    ensure_openwakeword_models()
 
+    """
     config_obj = config.load_config(config_path)
-    wakeword_model = openwakeword.Model(
-        wakeword_models=[config_obj.path_or_name_wakeword_model],
-        enable_speex_noise_suppression=True,
-        vad_threshold=config_obj.vad_threshold,
-        inference_framework=config_obj.openwakeword_inference_framework,
+
+    model_path = pathlib.Path(config_obj.wakeword_model_path)
+    if not model_path.exists():
+        raise FileNotFoundError(
+            f"Wake word model not found: {model_path}. "
+            "Download a .tflite model from https://github.com/esphome/micro-wake-word-models"
+        )
+
+    wakeword_model = MicroWakeWord(
+        model_path=config_obj.wakeword_model_path,
+        sliding_window_size=config_obj.wakeword_sliding_window_size,
+        cooldown_chunks=config_obj.wakeword_cooldown_chunks,
+        rearm_threshold=config_obj.wakework_detection_threshold,
     )
 
     logger = skill_logger.SkillLogger.get_logger("Private Assistant Comms Satellite")

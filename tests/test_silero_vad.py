@@ -19,8 +19,8 @@ class TestSileroVad:
 
         vad = SileroVad(threshold=0.5, trigger_level=2)
 
-        assert vad.threshold == 0.5  # noqa: PLR2004
-        assert vad.trigger_level == 2  # noqa: PLR2004
+        assert vad.threshold == 0.5
+        assert vad.trigger_level == 2
         assert vad._activation == 0
         assert vad.detector == mock_detector
 
@@ -114,4 +114,4 @@ class TestSileroVad:
         result = vad(audio_data)
 
         assert result is True  # Should trigger because max(0.3, 0.8) = 0.8 > 0.5
-        assert mock_detector.process_samples.call_count == 2  # noqa: PLR2004 - Should process 2 chunks (early termination)
+        assert mock_detector.process_samples.call_count == 2

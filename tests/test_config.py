@@ -16,12 +16,13 @@ class TestConfig:
         """Test that Config initializes with expected defaults."""
         config = Config()
 
-        assert config.wakework_detection_threshold == 0.6  # noqa: PLR2004
-        assert config.path_or_name_wakeword_model == "./hey_nova.onnx"
-        assert config.name_wakeword_model == "hey_nova"
-        assert config.samplerate == 16000  # noqa: PLR2004
-        assert config.chunk_size == 512  # noqa: PLR2004
-        assert config.vad_threshold == 0.6  # noqa: PLR2004
+        assert config.wakework_detection_threshold == 0.6
+        assert config.wakeword_model_path == "./okay_nabu.tflite"
+        assert config.wakeword_sliding_window_size == 5
+        assert config.wakeword_cooldown_chunks == 40
+        assert config.samplerate == 16000
+        assert config.chunk_size == 512
+        assert config.vad_threshold == 0.6
         assert config.ground_station_url == "ws://localhost:8000/satellite"
 
     def test_config_with_custom_values(self):
@@ -32,8 +33,8 @@ class TestConfig:
             ground_station_url="wss://custom.ground.station/satellite",
         )
 
-        assert config.wakework_detection_threshold == 0.8  # noqa: PLR2004
-        assert config.samplerate == 22050  # noqa: PLR2004
+        assert config.wakework_detection_threshold == 0.8
+        assert config.samplerate == 22050
         assert config.ground_station_url == "wss://custom.ground.station/satellite"
 
 
@@ -55,8 +56,8 @@ ground_station_url: "wss://test.ground.station/satellite"
             config_path = Path(f.name)
             config = load_config(config_path)
 
-            assert config.wakework_detection_threshold == 0.7  # noqa: PLR2004
-            assert config.samplerate == 22050  # noqa: PLR2004
+            assert config.wakework_detection_threshold == 0.7
+            assert config.samplerate == 22050
             assert config.ground_station_url == "wss://test.ground.station/satellite"
 
             # Clean up
@@ -98,8 +99,8 @@ samplerate: -1000
             config = load_config(config_path)
 
             # Should use defaults
-            assert config.wakework_detection_threshold == 0.6  # noqa: PLR2004
-            assert config.samplerate == 16000  # noqa: PLR2004
+            assert config.wakework_detection_threshold == 0.6
+            assert config.samplerate == 16000
 
             # Clean up
             config_path.unlink()

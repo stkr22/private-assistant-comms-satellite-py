@@ -8,27 +8,25 @@
 ```yaml
 # Larger chunks reduce CPU overhead
 chunk_size: 1024
-chunk_size_ow: 1280
 
-# Higher thresholds reduce false positives  
+# Higher thresholds reduce false positives
 vad_threshold: 0.7
 vad_trigger: 2
-wakework_detection_threshold: 0.65
+wakework_detection_threshold: 0.97
 
 # Shorter timeouts save memory
 max_command_input_seconds: 10
 ```
 
 #### Raspberry Pi 4 (Latency-optimized)
-```yaml  
+```yaml
 # Smaller chunks for lower latency
 chunk_size: 512
-chunk_size_ow: 1280
 
 # More sensitive detection
 vad_threshold: 0.6
 vad_trigger: 1
-wakework_detection_threshold: 0.6
+wakework_detection_threshold: 0.97
 
 # Can handle longer commands
 max_command_input_seconds: 15

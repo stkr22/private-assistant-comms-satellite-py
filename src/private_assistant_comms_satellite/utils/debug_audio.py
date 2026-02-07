@@ -18,6 +18,7 @@ class AudioRecorder:
 
         Args:
             output_dir: Directory to save audio files
+
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -38,6 +39,7 @@ class AudioRecorder:
 
         Returns:
             Path to saved file
+
         """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         filename = f"{prefix}_{timestamp}.wav"
@@ -71,6 +73,7 @@ class AudioRecorder:
             processed: Processed audio samples
             sample_rate: Sample rate in Hz
             label: Label for the comparison
+
         """
         self.save_audio(original, sample_rate, f"{label}_original")
         self.save_audio(processed, sample_rate, f"{label}_processed")
@@ -86,6 +89,7 @@ def calculate_snr(signal: np.ndarray, noise: np.ndarray) -> float:
 
     Returns:
         SNR in dB
+
     """
     signal_power = np.mean(signal**2)
     noise_power = np.mean(noise**2)

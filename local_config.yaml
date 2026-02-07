@@ -2,9 +2,8 @@
 # This file contains all available configuration options with their default values
 
 # Wake word detection settings
-wakework_detection_threshold: 0.6  # Confidence threshold for wake word detection (0.0-1.0)
-path_or_name_wakeword_model: "./hey_nova.onnx"  # Path to wake word model file
-name_wakeword_model: "hey_nova"  # Name of the wake word model
+wakework_detection_threshold: 0.97  # Confidence threshold for wake word detection (0.0-1.0)
+wakeword_model_path: "./okay_nabu.tflite"  # Path to .tflite wake word model file
 
 # API endpoints for speech processing
 speech_transcription_api: "http://localhost:8000/transcribe"  # STT API endpoint
@@ -25,7 +24,6 @@ max_command_input_seconds: 15     # Maximum recording time for voice commands
 max_length_speech_pause: 1.0      # Maximum pause duration before stopping recording
 samplerate: 16000                 # Audio sample rate in Hz
 chunk_size: 512                   # Audio processing chunk size
-chunk_size_ow: 1280              # OpenWakeWord chunk size
 
 # Voice Activity Detection (VAD)
 vad_threshold: 0.6  # VAD confidence threshold (0.0-1.0, 1.0 is speech)

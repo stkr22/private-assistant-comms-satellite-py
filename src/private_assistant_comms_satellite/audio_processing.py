@@ -26,6 +26,7 @@ class ParametricEQ:
             presence_boost_db: Boost at presence frequency in dB (0-6)
             presence_freq_hz: Center frequency for presence (2000-5000 Hz)
             presence_q: Q factor for presence (0.5-5.0, higher = narrower)
+
         """
         self.sample_rate = sample_rate
         self.filters: list[np.ndarray] = []
@@ -57,6 +58,7 @@ class ParametricEQ:
 
         Returns:
             EQ'd audio data
+
         """
         output = audio_chunk.copy()
 
@@ -97,6 +99,7 @@ class SimpleAGC:
             smoothing: Gain smoothing factor (0-0.99, higher = smoother)
             min_gain: Minimum gain factor (prevent over-attenuation)
             max_gain: Maximum gain factor (prevent over-amplification)
+
         """
         self.target_rms = target_rms
         self.smoothing = smoothing
@@ -112,6 +115,7 @@ class SimpleAGC:
 
         Returns:
             Gain-adjusted audio data
+
         """
         # Calculate RMS of current chunk
         rms = np.sqrt(np.mean(audio_chunk**2))

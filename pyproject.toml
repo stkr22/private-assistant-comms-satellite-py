@@ -28,14 +28,14 @@ dependencies = [
     "pyyaml",
     "pydantic",
     "private-assistant-commons~=6.3.0",
-    "speexdsp-ns~=0.1.2",
     "numpy~=2.3.0",
     "websockets~=16.0",
-    "onnxruntime~=1.23.2",
     "pysilero-vad~=3.2.0",
     "typer~=0.21.0",
-    "private-assistant-openwakeword~=0.6.0",
     "sounddevice~=0.5.1",
+    "scipy>=1.14.0",
+    "pymicro-features>=0.1.0",
+    "ai-edge-litert>=1.2.0",
 ]
 
 
@@ -59,4 +59,5 @@ dev = [
     "soundfile~=0.12.1",
     "scipy-stubs~=1.17.0.1",
     "types-pyyaml~=6.0.12.20240311",
+    "piper-tts>=1.2.0",
 ]

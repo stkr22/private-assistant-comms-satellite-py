@@ -14,7 +14,7 @@ The Private Assistant Communications Satellite is a latency-optimized edge devic
 
 ## 🎯 Key Features
 
-- **🔊 Real-time Wake Word Detection** - OpenWakeWord integration with customizable models
+- **🔊 Real-time Wake Word Detection** - micro-wake-word TFLite integration with customizable models
 - **🎤 Voice Activity Detection (VAD)** - Silero VAD for accurate speech boundary detection
 - **🗣️ Speech Processing Integration** - Async STT/TTS API communication
 - **📡 MQTT Ecosystem Integration** - Low-latency message passing with the assistant ecosystem
@@ -136,9 +136,8 @@ uv run comms-satellite config-template
 
 ```yaml
 # Wake word settings
-wakework_detection_threshold: 0.6
-path_or_name_wakeword_model: "./assets/wakeword_models/hey_nova.onnx"
-name_wakeword_model: "hey_nova"
+wakework_detection_threshold: 0.97
+wakeword_model_path: "./okay_nabu.tflite"
 
 # API endpoints - REQUIRED
 speech_transcription_api: "http://your-stt-server:8000/transcribe"
@@ -163,7 +162,6 @@ output_device_index: 1  # Your speaker
 ```yaml
 # Optimize for minimal CPU usage
 chunk_size: 1024        # Larger chunks = less CPU overhead
-chunk_size_ow: 1280     # OpenWakeWord optimized size
 samplerate: 16000       # Standard rate, good quality/performance balance
 vad_threshold: 0.7      # Higher threshold = less false positives
 vad_trigger: 2          # Require 2 chunks before activation
@@ -174,7 +172,6 @@ max_command_input_seconds: 10  # Shorter timeout saves memory
 ```yaml
 # Optimize for lower latency
 chunk_size: 512         # Smaller chunks = lower latency
-chunk_size_ow: 1280     # Keep OpenWakeWord optimized
 samplerate: 16000       # Can handle higher if needed
 vad_threshold: 0.6      # More sensitive detection
 vad_trigger: 1          # Immediate activation
@@ -378,11 +375,9 @@ output_topic_overwrite: "custom/satellite/living_room/speech_output"
 ```yaml
 # Lower latency (higher CPU usage)
 chunk_size: 256
-chunk_size_ow: 1280
 
 # Higher latency (lower CPU usage)
 chunk_size: 1024
-chunk_size_ow: 1280
 ```
 
 2. **VAD Sensitivity Tuning:**
@@ -531,6 +526,7 @@ private-assistant-comms-satellite-py/
 │   ├── cli.py                   # Command-line interface
 │   ├── main.py                  # Application entry point
 │   ├── satellite.py            # Core Satellite class (main logic)
+│   ├── micro_wake_word.py     # MicroWakeWord streaming detector
 │   ├── silero_vad.py           # Voice Activity Detection
 │   └── utils/
 │       ├── config.py           # Configuration management
@@ -573,7 +569,7 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 
 ## 🙏 Acknowledgments
 
-- **OpenWakeWord** - Wake word detection engine
+- **[micro-wake-word](https://github.com/OHF-Voice/micro-wake-word)** - Wake word detection models (TFLite)
 - **Silero VAD** - Voice activity detection
 - **Private Assistant Commons** - Shared utilities and message formats
 - **sounddevice** - Python audio I/O library with NumPy integration
