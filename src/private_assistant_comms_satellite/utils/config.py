@@ -1,3 +1,5 @@
+"""Configuration models and YAML loading."""
+
 import logging
 import socket
 from pathlib import Path
@@ -55,10 +57,12 @@ class AudioProcessingConfig(BaseModel):
 
 
 class Config(BaseModel):
+    """Satellite application configuration."""
+
     wakework_detection_threshold: float = 0.6
-    openwakeword_inference_framework: str = "onnx"
-    path_or_name_wakeword_model: str = "./hey_nova.onnx"
-    name_wakeword_model: str = "hey_nova"
+    wakeword_model_path: str = "./okay_nabu.tflite"
+    wakeword_sliding_window_size: int = Field(default=5, ge=1, le=20)
+    wakeword_cooldown_chunks: int = Field(default=40, ge=1, le=200)
     # AIDEV-NOTE: Ground station WebSocket configuration replaces MQTT and API endpoints
     ground_station_url: str = "ws://localhost:8000/satellite"
     client_id: str = socket.gethostname()
@@ -69,7 +73,6 @@ class Config(BaseModel):
     max_length_speech_pause: float = 1.0
     samplerate: int = 16000
     chunk_size: int = 512
-    chunk_size_ow: int = 1280
     vad_threshold: float = 0.6
     """Silence threshold (0-1, 1 is speech)"""
     vad_trigger: int = 1
@@ -83,6 +86,7 @@ class Config(BaseModel):
 
 
 def load_config(config_path: Path) -> Config:
+    """Load and validate configuration from a YAML file."""
     try:
         with config_path.open("r") as file:
             config_data = yaml.safe_load(file)

@@ -1,3 +1,5 @@
+"""WebSocket client for ground station communication."""
+
 import asyncio
 import json
 from contextlib import suppress
@@ -29,7 +31,8 @@ class ClientConfig(BaseModel):
 class GroundStationClient:
     """WebSocket client for communicating with the ground station."""
 
-    def __init__(self, config_obj: "config.Config"):
+    def __init__(self, config_obj: "config.Config") -> None:
+        """Initialize the client with ground station configuration."""
         self.config = config_obj
         self.websocket: ClientConnection | None = None
         self._connected = False
@@ -65,7 +68,7 @@ class GroundStationClient:
                 room=self.config.room,
             )
             # Send as JSON using Pydantic's model_dump_json()
-            await self.websocket.send(config_message.model_dump_json())  # type: ignore
+            await self.websocket.send(config_message.model_dump_json())  # type: ignore[union-attr]
             logger.debug("Sent configuration to ground station: %s", config_message.model_dump())
 
             # Start message handler
@@ -97,7 +100,7 @@ class GroundStationClient:
                     reconnect_delay = 1.0  # Reset delay on successful connection
 
                 # Wait for connection to close or stop signal
-                while self._running and self.is_connected:
+                while self._running and self.is_connected:  # noqa: ASYNC110
                     await asyncio.sleep(0.5)
 
                 # Connection lost
@@ -136,12 +139,13 @@ class GroundStationClient:
         return self._connected and self.websocket is not None
 
     async def _send_command(self, command: Literal["START_COMMAND", "END_COMMAND", "CANCEL_COMMAND"] | bytes) -> None:
-        """Generic method to send commands or audio data to ground station.
+        """Send a command or audio data to the ground station.
 
         Args:
             command: Either a command string or audio bytes to send
 
         Handles disconnection detection and state cleanup on errors.
+
         """
         if not self.is_connected:
             command_type = "audio" if isinstance(command, bytes) else command
@@ -149,7 +153,7 @@ class GroundStationClient:
             return
 
         try:
-            await self.websocket.send(command)  # type: ignore
+            await self.websocket.send(command)  # type: ignore[union-attr]
             if isinstance(command, bytes):
                 logger.debug("Sent audio chunk (%d bytes) to ground station", len(command))
             else:
@@ -181,10 +185,11 @@ class GroundStationClient:
         """Send CANCEL_COMMAND signal to cancel current processing."""
         await self._send_command("CANCEL_COMMAND")
 
-    async def get_response(self, timeout: float = 30.0) -> dict[str, Any] | None:
+    async def get_response(self, timeout: float = 30.0) -> dict[str, Any] | None:  # noqa: ASYNC109
         """Get next response from ground station with timeout."""
         try:
-            return await asyncio.wait_for(self._response_queue.get(), timeout=timeout)
+            async with asyncio.timeout(timeout):
+                return await self._response_queue.get()
         except TimeoutError:
             # Timeout is normal when no messages are available - don't log as warning
             return None
@@ -196,7 +201,7 @@ class GroundStationClient:
 
         try:
             message = json.dumps(data)
-            await self.websocket.send(message)  # type: ignore
+            await self.websocket.send(message)  # type: ignore[union-attr]
         except Exception as e:
             logger.error("Failed to send JSON message: %s", e)
 

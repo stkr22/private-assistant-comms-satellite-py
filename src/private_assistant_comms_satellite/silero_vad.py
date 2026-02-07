@@ -8,6 +8,7 @@ class SileroVad:
     """Voice activity detection with silero VAD."""
 
     def __init__(self, threshold: float, trigger_level: int) -> None:
+        """Initialize the VAD with detection threshold and trigger level."""
         self.detector = SileroVoiceActivityDetector()
         self.threshold = threshold
         self.trigger_level = trigger_level
@@ -24,6 +25,7 @@ class SileroVad:
 
         Returns:
             True if sustained speech detected above trigger level
+
         """
         # AIDEV-NOTE: VAD reset mechanism for initialization and error recovery
         if audio_array is None:

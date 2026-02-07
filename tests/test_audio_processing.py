@@ -11,7 +11,7 @@ class TestParametricEQ:
     def test_eq_initialization(self):
         """Test EQ can be initialized with valid parameters."""
         eq = ParametricEQ(sample_rate=16000, presence_boost_db=2.5, presence_freq_hz=3500.0)
-        assert eq.sample_rate == 16000  # noqa: PLR2004
+        assert eq.sample_rate == 16000
         assert len(eq.filters) > 0  # At least presence filter
 
     def test_eq_boosts_presence_frequency(self):
@@ -104,7 +104,7 @@ class TestSimpleAGC:
     def test_agc_initialization(self):
         """Test AGC can be initialized."""
         agc = SimpleAGC(target_rms=0.1, smoothing=0.9)
-        assert agc.target_rms == 0.1  # noqa: PLR2004
+        assert agc.target_rms == 0.1
         assert agc.current_gain == 1.0
 
     def test_agc_normalizes_quiet_signal(self):
@@ -149,7 +149,7 @@ class TestSimpleAGC:
         audio = np.random.randn(1000).astype(np.float32) * 0.01
         for i in range(0, len(audio), 512):
             chunk = audio[i : i + 512]
-            if len(chunk) == 512:  # noqa: PLR2004
+            if len(chunk) == 512:
                 agc.process(chunk)
 
         # Gain should have changed

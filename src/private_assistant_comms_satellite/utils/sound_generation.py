@@ -9,7 +9,7 @@ import logging
 import math
 
 import numpy as np
-import numpy.typing as np_typing
+import numpy.typing as npt
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ def generate_sweep(
     duration: float,
     sample_rate: int = 16000,
     amplitude: float = 0.3,
-) -> np_typing.NDArray[np.float32]:
+) -> npt.NDArray[np.float32]:
     """Generate a frequency sweep (chirp) from start to end frequency.
 
     Args:
@@ -32,6 +32,7 @@ def generate_sweep(
 
     Returns:
         Float32 audio array with frequency sweep
+
     """
     # AIDEV-NOTE: Linear frequency sweep with smooth transitions
     num_samples = int(sample_rate * duration)
@@ -59,7 +60,7 @@ def generate_sweep(
         wave[-fade_samples:] *= fade_out
 
     # Keep as float32 for sounddevice
-    wave_float32: np_typing.NDArray[np.float32] = wave.astype(np.float32)
+    wave_float32: npt.NDArray[np.float32] = wave.astype(np.float32)
 
     logger.debug(
         "Generated sweep: %.1f-%.1f Hz, %.2f seconds, %d samples", start_freq, end_freq, duration, len(wave_float32)
@@ -67,7 +68,7 @@ def generate_sweep(
     return wave_float32
 
 
-def generate_start_recording_sound(sample_rate: int = 16000) -> np_typing.NDArray[np.float32]:
+def generate_start_recording_sound(sample_rate: int = 16000) -> npt.NDArray[np.float32]:
     """Generate a pleasant start recording notification sound using upward frequency sweep.
 
     Args:
@@ -75,6 +76,7 @@ def generate_start_recording_sound(sample_rate: int = 16000) -> np_typing.NDArra
 
     Returns:
         Float32 audio array suitable for sounddevice playback
+
     """
     # AIDEV-NOTE: Optimistic upward sweep to signal recording start
     wave = generate_sweep(200, 800, 0.4, sample_rate, amplitude=0.4)
@@ -82,7 +84,7 @@ def generate_start_recording_sound(sample_rate: int = 16000) -> np_typing.NDArra
     return wave
 
 
-def generate_stop_recording_sound(sample_rate: int = 16000) -> np_typing.NDArray[np.float32]:
+def generate_stop_recording_sound(sample_rate: int = 16000) -> npt.NDArray[np.float32]:
     """Generate a pleasant stop recording notification sound using downward frequency sweep.
 
     Args:
@@ -90,6 +92,7 @@ def generate_stop_recording_sound(sample_rate: int = 16000) -> np_typing.NDArray
 
     Returns:
         Float32 audio array suitable for sounddevice playback
+
     """
     # AIDEV-NOTE: Gentle downward sweep to signal recording completion
     wave = generate_sweep(800, 200, 0.4, sample_rate, amplitude=0.4)
@@ -97,7 +100,7 @@ def generate_stop_recording_sound(sample_rate: int = 16000) -> np_typing.NDArray
     return wave
 
 
-def generate_disconnection_warning_sound(sample_rate: int = 16000) -> np_typing.NDArray[np.float32]:
+def generate_disconnection_warning_sound(sample_rate: int = 16000) -> npt.NDArray[np.float32]:
     """Generate a warning sound for disconnection notification.
 
     Creates a distinctive two-tone warning sound to alert the user that
@@ -108,6 +111,7 @@ def generate_disconnection_warning_sound(sample_rate: int = 16000) -> np_typing.
 
     Returns:
         Float32 audio array suitable for sounddevice playback
+
     """
     # AIDEV-NOTE: Two-tone warning pattern to indicate connection issue
     # First tone: lower frequency, shorter
@@ -123,7 +127,7 @@ def generate_disconnection_warning_sound(sample_rate: int = 16000) -> np_typing.
 
     # Combine the tones with gap
     wave = np.concatenate([tone1, gap, tone2])
-    wave_float32: np_typing.NDArray[np.float32] = wave.astype(np.float32)
+    wave_float32: npt.NDArray[np.float32] = wave.astype(np.float32)
 
     logger.info("Generated disconnection warning sound: two-tone pattern, %d samples", len(wave_float32))
     return wave_float32
@@ -131,7 +135,7 @@ def generate_disconnection_warning_sound(sample_rate: int = 16000) -> np_typing.
 
 def generate_default_sounds(
     sample_rate: int = 16000,
-) -> tuple[np_typing.NDArray[np.float32], np_typing.NDArray[np.float32]]:
+) -> tuple[npt.NDArray[np.float32], npt.NDArray[np.float32]]:
     """Generate both start and stop recording sounds using frequency sweeps.
 
     Args:
@@ -139,6 +143,7 @@ def generate_default_sounds(
 
     Returns:
         Tuple of (start_sound_array, stop_sound_array) as float32 arrays
+
     """
     # AIDEV-NOTE: Convenience function for generating paired sweep notification sounds
     start_sound = generate_start_recording_sound(sample_rate)
