@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.0](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v1.6.0...v1.7.0) (2026-02-07)
+
+
+### Features
+
+* :sparkles: replace openwakeword with micro-wake-word streaming detector ([2ddd02c](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/2ddd02c5bfb05a6680cdc6d1cd2d489d1a404066)), closes [#56](https://github.com/stkr22/private-assistant-comms-satellite-py/issues/56)
+* replace openwakeword with micro-wake-word streaming detector ([6c7a913](https://github.com/stkr22/private-assistant-comms-satellite-py/commit/6c7a913144e0a52f28a8da64d9d8555a36bc5b14))
+
 ## [1.6.0](https://github.com/stkr22/private-assistant-comms-satellite-py/compare/v1.5.0...v1.6.0) (2026-01-18)
 
 
