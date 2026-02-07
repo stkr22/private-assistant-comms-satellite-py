@@ -5,3 +5,6 @@ testpaths = [
     "tests",
     "integration",
 ]
+markers = [
+    "integration: marks tests that require external resources (models, network)",
+]
